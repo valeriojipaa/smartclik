@@ -102,7 +102,7 @@ export default function HomePage() {
                       Cores e selo prontos
                     </span>
                     <Link
-                      href={`/campanhas/nova?theme=${theme.id}`}
+                      href={`/campanhas/nova?theme=${theme.id}&new=${Date.now()}-${theme.id}`}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold rounded-xl transition-colors"
                     >
                       <span>Usar modelo</span>

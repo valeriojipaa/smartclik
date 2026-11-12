@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { DraftList } from '@/components/DraftList';
 import { MainLayout } from '@/components/MainLayout';
 import { Campaign } from '@/types';
 import { getCampaigns, saveCampaigns } from '@/utils/storage';
@@ -32,7 +33,7 @@ export default function CampaignsListPage() {
   };
 
   return (
-    <MainLayout>
+    <MainLayout><DraftList />
       <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

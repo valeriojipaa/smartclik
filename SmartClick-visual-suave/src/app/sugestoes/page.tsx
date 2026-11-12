@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { Package, Leaf, Beef, Droplets, Zap, Gift } from 'lucide-react';
 import { BADGES } from '@/constants/badges';
 import { MainLayout } from '@/components/MainLayout';
 import { VISUAL_THEMES } from '@/constants/themes';
@@ -126,9 +127,9 @@ export default function SuggestionsPage() {
 
         {/* Grade de Campanhas Sugeridas */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {new Date().getMonth()===10&&['premium','marinho','grafite'].map((preset,i)=><div key={preset} className="bg-white rounded-2xl p-5 border space-y-3"><div style={{background:['#202020','#173553','#34383f'][i],borderRadius:12,padding:16}}><img src={BADGES.find(b=>b.file==='08-black-friday.png')!.url} alt="Black Friday" style={{width:'100%',height:130,objectFit:'contain'}}/></div><h3 className="font-bold">Black Friday · {['Dourado','Marinho','Grafite'][i]}</h3><p className="text-xs">Selo e fundo prontos. Você escolhe os produtos, preços e validade.</p><Link className="block text-purple-600 font-bold text-sm" href={'/campanhas/nova?theme=black-friday&preset='+preset}>Usar este estilo →</Link></div>)}
+          {new Date().getMonth()===10&&['premium','marinho','grafite'].map((preset,i)=><div key={preset} className="bg-white rounded-2xl p-5 border space-y-3"><div style={{background:['#202020','#173553','#34383f'][i],borderRadius:12,padding:16}}><img src={BADGES.find(b=>b.file==='08-black-friday.png')!.url} alt="Black Friday" style={{width:'100%',height:130,objectFit:'contain'}}/></div><h3 className="font-bold">Black Friday · {['Dourado','Marinho','Grafite'][i]}</h3><p className="text-xs">Selo e fundo prontos. Você escolhe os produtos, preços e validade.</p><Link className="block text-purple-600 font-bold text-sm" href={'/campanhas/nova?theme=black-friday&preset='+preset+'&new='+Date.now()+'-'+preset}>Usar este estilo →</Link></div>)}
           {MONTHLY_SUGGESTIONS.map((sug) => {
-            const theme = VISUAL_THEMES[sug.themeId];
+            const theme = VISUAL_THEMES[sug.themeId]; const Icon=({feirinha:Leaf,acougue:Beef,limpeza:Droplets,'ofertas-do-dia':Zap,natal:Gift} as Record<string,typeof Package>)[sug.themeId]||Package;
             return (
               <div
                 key={sug.id}
@@ -144,7 +145,7 @@ export default function SuggestionsPage() {
                         {theme.name}
                       </span>
                       <h3 className="font-extrabold text-sm leading-tight drop-shadow-sm">
-                        {sug.title}
+                        <span className="sc-clay" style={{float:'right',marginLeft:10}}><Icon /></span>{sug.title}
                       </h3>
                     </div>
                     <span className="text-[10px] bg-black/25 px-2.5 py-1 rounded-full font-bold shrink-0">
@@ -171,7 +172,7 @@ export default function SuggestionsPage() {
                     Usa seus produtos atuais
                   </span>
                   <Link
-                    href={`/campanhas/nova?theme=${sug.themeId}`}
+                    href={`/campanhas/nova?theme=${sug.themeId}&new=${Date.now()}-${sug.id}`}
                     className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-200 transition-colors"
                   >
                     <span>Criar Campanha</span>

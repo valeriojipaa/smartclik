@@ -6,7 +6,7 @@ import { PhotoUpload } from '@/components/PhotoUpload';
 import { OptionSection } from '@/components/OptionSection';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
 import { BadgePicker } from '@/components/BadgePicker';
-import { FoodSearch } from '@/components/FoodSearch';
+
 import { MainLayout } from '@/components/MainLayout';
 import { FlyerCanvas } from '@/components/FlyerCanvas';
 import {
@@ -70,7 +70,10 @@ function CampaignEditorContent() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState('');
 
-  const draftKey = 'smartclick_campaign_draft_v2' + (duplicateId || '');
+  const sessionId=searchParams.get('new')||searchParams.get('draft')||duplicateId||'current';
+  const draftKey='smartclick_campaign_draft_v3_'+sessionId;
+  const [pageBreaks,setPageBreaks]=useState<number[]>([]);
+  const [draftWarning,setDraftWarning]=useState('');
   const [draftReady, setDraftReady] = useState(false);
   const pagesContainerRef = useRef<HTMLDivElement>(null);
 
@@ -86,13 +89,15 @@ function CampaignEditorContent() {
         setThemeId(existing.themeId);
         setBadgeUrl(existing.badgeUrl || '');if(existing.artwork)setArtwork(existing.artwork);
         setBackgroundId(existing.backgroundId || 'original');
-        setCampaignItems(existing.items);
+        setCampaignItems(existing.items);setPageBreaks(existing.pageBreaks||[]);
         setDraftReady(true);
         return;
       }
     }
 
-    try { const raw = localStorage.getItem(draftKey); if(raw) {const d=JSON.parse(raw);setTitle(d.title);setThemeId(d.themeId);setBadgeUrl(d.badgeUrl || '');if(d.artwork)setArtwork(d.artwork);setBackgroundId(d.backgroundId || 'original');setStartDate(d.startDate);setEndDate(d.endDate);setCampaignItems(d.items);setDraftReady(true);return;} } catch {}
+    try { const raw = localStorage.getItem(draftKey); if(raw) {const d=JSON.parse(raw);setTitle(d.title);setThemeId(d.themeId);setBadgeUrl(d.badgeUrl || '');if(d.artwork)setArtwork(d.artwork);setBackgroundId(d.backgroundId || 'original');setStartDate(d.startDate);setEndDate(d.endDate);setCampaignItems(d.items);setPageBreaks(d.pageBreaks||[]);setSelectedFormat(d.selectedFormat==='a5'?'a4':d.selectedFormat||'stories');setDraftReady(true);return;} } catch {}
+    const preset=searchParams.get('preset');
+    if(searchParams.get('theme')){setThemeId(initialTheme);const files:Record<string,string>={'promocao':'01-promocao.png','ofertas-da-semana':'02-ofertas-da-semana.png','ofertas-do-dia':'03-ofertas-do-dia.png','fim-de-semana':'04-fim-de-semana.png','acougue':'05-acougue.png','feirinha':'06-feirinha.png','limpeza':'07-limpeza.png','black-friday':'08-black-friday.png','natal':'09-natal.png','reveillon':'10-reveillon.png'};setBadgeUrl('https://sihrhmizpigscavtrtyl.supabase.co/storage/v1/object/public/selos/'+files[initialTheme]);setBackgroundId(preset||({'feirinha':'verde','black-friday':'premium','ofertas-da-semana':'azul'}[initialTheme]||'comercial'));setTitle(VISUAL_THEMES[initialTheme]?.name||'Nova campanha');}
     setDraftReady(true);
     // Carregar inicialmente os primeiros 6 produtos do catálogo se não houver duplicata
     if (prods.length > 0 && campaignItems.length === 0) {
@@ -108,10 +113,11 @@ function CampaignEditorContent() {
     }
   }, [duplicateId]);
 
-  useEffect(() => { if(!draftReady)return; const timer=setTimeout(()=>{try{localStorage.setItem(draftKey,JSON.stringify({artwork,backgroundId,badgeUrl,title,themeId,startDate,endDate,items:campaignItems}));}catch{setExportMessage('Não foi possível salvar o rascunho neste navegador.');}},400);return()=>clearTimeout(timer);},[draftReady,draftKey,artwork,backgroundId,badgeUrl,title,themeId,startDate,endDate,campaignItems]);
-  useEffect(()=>{const preset=searchParams.get('preset');if(!preset)return;setThemeId('black-friday');setBadgeUrl('https://sihrhmizpigscavtrtyl.supabase.co/storage/v1/object/public/selos/08-black-friday.png');setBackgroundId(preset);setTitle('Black Friday');},[searchParams]);
+  useEffect(()=>{if(!draftReady)return;const d={artwork,backgroundId,badgeUrl,title,themeId,startDate,endDate,items:campaignItems,pageBreaks,selectedFormat};try{localStorage.setItem(draftKey,JSON.stringify(d));const index=JSON.parse(localStorage.getItem('smartclick_drafts_index')||'{}');index[sessionId]={title,updatedAt:new Date().toISOString()};localStorage.setItem('smartclick_drafts_index',JSON.stringify(index));setDraftWarning('');}catch{setDraftWarning('Armazenamento cheio: o rascunho não foi salvo. Exporte antes de fechar.');}},[draftReady,draftKey,sessionId,artwork,backgroundId,badgeUrl,title,themeId,startDate,endDate,campaignItems,pageBreaks,selectedFormat]);
   const activeTheme = VISUAL_THEMES[themeId] || VISUAL_THEMES.promocao;
-  const pages = chunkItemsByFormat(campaignItems, selectedFormat);
+  const starts=[0,...pageBreaks.filter(n=>n>0&&n<campaignItems.length)].sort((a,b)=>a-b);
+  const pages=starts.flatMap((start,i)=>chunkItemsByFormat(campaignItems.slice(start,starts[i+1]||campaignItems.length),selectedFormat));
+  function addPage(){const base=pages[0]||[];if(!base.length)return;setPageBreaks([...pageBreaks,campaignItems.length]);setCampaignItems([...campaignItems,...base.map((item,i)=>({...item,id:'ci-copy-'+Date.now()+'-'+i}))]);}
 
   // Ações de itens
   const handleAddItem = (product: Product) => {
@@ -131,7 +137,7 @@ function CampaignEditorContent() {
   };
 
   const handleRemoveItem = (id: string) => {
-    setCampaignItems(campaignItems.filter((i) => i.id !== id));
+    const pos=campaignItems.findIndex(i=>i.id===id);setPageBreaks(pageBreaks.map(n=>n>pos?n-1:n));setCampaignItems(campaignItems.filter(i=>i.id!==id));
   };
 
   const handleUpdateItem = (id: string, updates: Partial<CampaignItem>) => {
@@ -143,13 +149,14 @@ function CampaignEditorContent() {
   // Salvar Campanha
   const handleSave = () => {
     const newCampaign: Campaign = {
-      id: `camp-${Date.now()}`,
+      id: `camp-${sessionId}`,
       storeId: store.id,
       title,
       themeId,
       badgeUrl,
       backgroundId,
       artwork,
+      pageBreaks,
       startDate,
       endDate,
       items: campaignItems,
@@ -297,7 +304,7 @@ function CampaignEditorContent() {
           {/* PAINEL ESQUERDO: CONFIGURAÇÃO DOS PRODUTOS E PREÇOS */}
           <div className="lg:col-span-5 space-y-5">
             <section className="bg-white border rounded-2xl p-5 space-y-4">
-<h2 className="text-lg font-bold">QUAL FORMATO VOCÊ PRECISA?</h2><div className="grid grid-cols-2 gap-2">{([{id:'stories',name:'Stories',info:'1080 × 1920'},{id:'feed',name:'Feed',info:'1080 × 1350'},{id:'a5',name:'Panfleto · meio A4',info:'148 × 210 mm'},{id:'a4',name:'Panfleto · A4',info:'210 × 297 mm'}] as const).map(f=><button key={f.id} type="button" onClick={()=>setSelectedFormat(f.id)} aria-pressed={selectedFormat===f.id} className="border rounded-xl p-3 text-sm" style={{borderColor:selectedFormat===f.id?'#9565c9':'#e8e0ee',background:selectedFormat===f.id?'#f5effb':'white'}}>{f.name}<small className="block text-xs">{f.info}</small></button>)}</div>
+<h2 className="text-lg font-bold">QUAL FORMATO VOCÊ PRECISA?</h2><div className="grid grid-cols-2 gap-2">{([{id:'stories',name:'Stories',info:'1080 × 1920'},{id:'feed',name:'Feed',info:'1080 × 1350'},{id:'a4',name:'Panfleto · A4',info:'210 × 297 mm'}] as const).map(f=><button key={f.id} type="button" onClick={()=>setSelectedFormat(f.id)} aria-pressed={selectedFormat===f.id} className="border rounded-xl p-3 text-sm" style={{borderColor:selectedFormat===f.id?'#9565c9':'#e8e0ee',background:selectedFormat===f.id?'#f5effb':'white'}}>{f.name}<small className="block text-xs">{f.info}</small></button>)}</div>
 <div className="grid grid-cols-2 gap-3"><label className="text-xs">Início das ofertas<input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} className="block border rounded p-2 w-full"/></label><label className="text-xs">Fim das ofertas<input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} className="block border rounded p-2 w-full"/></label></div>
 {backgroundId==='none'&&<label className="block text-xs">Cor do texto no cabeçalho<input type="color" value={artwork.textColor||'#202020'} onChange={e=>setArtwork({...artwork,textColor:e.target.value})}/></label>}
 </section>
@@ -307,7 +314,7 @@ function CampaignEditorContent() {
  <p>Clique no selo ou logotipo na prévia e arraste. Os ajustes ficam na área superior para preservar produtos e rodapé.</p>
  <label className="block">Identificação da loja<select className="border rounded p-2 ml-2" value={artwork.identity} onChange={e=>setArtwork({...artwork,identity:e.target.value})}><option value="name">Nome em texto</option><option value="logo">Logotipo</option></select></label>
  <label className="block"><input type="checkbox" checked={artwork.italic} onChange={e=>setArtwork({...artwork,italic:e.target.checked})}/> Nome em negrito e itálico</label>
- <PhotoUpload onChange={url=>setArtwork({...artwork,logoUrl:url,identity:'logo'})}/>
+ <PhotoUpload label="ENVIAR LOGO" onChange={url=>setArtwork({...artwork,logoUrl:url,identity:'logo'})}/>
  <button type="button" className="border rounded p-2" onClick={async()=>{const src=artwork.logoUrl||store.logoUrl;if(!src){alert('Envie um logotipo primeiro.');return}try{const im=new Image();im.crossOrigin='anonymous';await new Promise<void>((ok,no)=>{im.onload=()=>ok();im.onerror=no;im.src=src});const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const ctx=c.getContext('2d')!;ctx.drawImage(im,0,0);const pixels=ctx.getImageData(0,0,c.width,c.height);const seen=new Uint8Array(c.width*c.height),queue:number[]=[];const add=(i:number)=>{if(seen[i])return;seen[i]=1;const k=i*4;if(pixels.data[k]>235&&pixels.data[k+1]>235&&pixels.data[k+2]>235)queue.push(i)};for(let x=0;x<c.width;x++){add(x);add((c.height-1)*c.width+x)}for(let y=0;y<c.height;y++){add(y*c.width);add(y*c.width+c.width-1)}for(let n=0;n<queue.length;n++){const i=queue[n];pixels.data[i*4+3]=0;if(i%c.width)add(i-1);if(i%c.width<c.width-1)add(i+1);if(i>=c.width)add(i-c.width);if(i<c.width*(c.height-1))add(i+c.width)}ctx.putImageData(pixels,0,0);setArtwork({...artwork,logoUrl:c.toDataURL('image/png'),identity:'logo'});}catch{alert('Envie o arquivo do logo para remover o fundo branco.')}}}>Remover fundo branco do logo</button><p className="text-xs">Remove branco conectado às bordas. Confira o resultado; você pode reenviar o original.</p>
  {(['badge','logo'] as const).map(key=><label key={key} className="block">Tamanho do {key==='badge'?'selo':'logotipo'}<input aria-label={'Tamanho '+key} type="range" min={key==='badge'?100:40} max={key==='badge'?500:200} value={artwork[key].width} className="block w-full" onChange={e=>{const width=Number(e.target.value);setArtwork({...artwork,[key]:{...artwork[key],width,x:Math.min(artwork[key].x,540-width),y:Math.min(artwork[key].y,Math.max(0,165-Math.min(width*.48,165)))}})}}/></label>)}
  <button type="button" className="border rounded p-2" onClick={()=>setArtwork({...artwork,badge:{x:90,y:27,width:360},logo:{x:12,y:8,width:90}})}>Restaurar posições</button>
@@ -388,44 +395,7 @@ function CampaignEditorContent() {
                       </div>
                     </div>
 
-                    {/* Selo e Condição Opcional */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[10px] font-medium text-slate-500">
-                          Selo Destaque
-                        </label>
-                        <select
-                          value={item.highlightBadge || ''}
-                          onChange={(e) =>
-                            handleUpdateItem(item.id, { highlightBadge: e.target.value })
-                          }
-                          className="w-full px-1.5 py-1 bg-white border border-slate-200 rounded text-[11px] outline-none"
-                        >
-                          <option value="">Nenhum</option>
-                          {PROMO_BADGES.map((b) => (
-                            <option key={b} value={b}>
-                              {b}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-medium text-slate-500">
-                          Limite cliente
-                        </label>
-                        <input
-                          type="number"
-                          placeholder="Ex: 5"
-                          value={item.limitPerCustomer || ''}
-                          onChange={(e) =>
-                            handleUpdateItem(item.id, {
-                              limitPerCustomer: parseInt(e.target.value) || undefined,
-                            })
-                          }
-                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs outline-none"
-                        />
-                      </div>
-                    </div>
+
                   </div>
                 ))}
               </div>
@@ -467,50 +437,7 @@ function CampaignEditorContent() {
             </div>
 
             </OptionSection>
-            <OptionSection title="Buscar produto com foto"><FoodSearch onChoose={(product) => { const updated=[product,...allProducts.filter(p=>p.id!==product.id)];saveProducts(updated);setAllProducts(updated);handleAddItem(product); }} /></OptionSection>
 
-            <OptionSection title="Rodapé e condições">
-            {/* 3. Rodapé Legal e Condições */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
-              <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider">
-                3. Condições Legais do Rodapé
-              </h3>
-
-              <div className="space-y-2 text-xs">
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={hasStockLimit}
-                    onChange={(e) => setHasStockLimit(e.target.checked)}
-                    className="rounded text-purple-600 focus:ring-purple-500"
-                  />
-                  <span>Incluir: &ldquo;Válido enquanto durarem os estoques&rdquo;</span>
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-slate-700">
-                  <input
-                    type="checkbox"
-                    checked={hasIllustrativeImagesNotice}
-                    onChange={(e) => setHasIllustrativeImagesNotice(e.target.checked)}
-                    className="rounded text-purple-600 focus:ring-purple-500"
-                  />
-                  <span>Incluir: &ldquo;Fotos meramente ilustrativas&rdquo;</span>
-                </label>
-
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Texto Legal Adicional da Loja
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={store.footerLegalText || ''}
-                    onChange={(e) => setStore({ ...store, footerLegalText: e.target.value })}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-xl text-xs outline-none focus:border-purple-600"
-                  />
-                </div>
-              </div>
-            </div>
-            </OptionSection>
           </div>
 
           {/* PAINEL DIREITO: PRÉVIA REAL EM ALTA DEFINIÇÃO E DOWNLOAD */}
@@ -519,14 +446,16 @@ function CampaignEditorContent() {
               <div className="flex items-center gap-2">
                 <Eye className="w-4 h-4 text-purple-600" />
                 <span className="text-xs font-bold text-slate-900">
-                  Prévia em Tempo Real ({pages.length} página(s) gerada(s)) — até 22 itens por página
+                  PRÉVIA
                 </span>
               </div>
               <span className="text-[11px] font-semibold text-slate-500">
-                Resolução final preservada a 300 DPI na exportação
+                
               </span>
             </div>
 
+            <button type="button" className="sc-upload-button" onClick={addPage}>+ Criar página baseada na primeira</button>
+            {draftWarning&&<p role="alert" className="text-red-600 text-xs">{draftWarning}</p>}
             {/* Container das Páginas Renderizadas */}
             <div
               ref={pagesContainerRef}
@@ -576,10 +505,11 @@ function CampaignEditorContent() {
   );
 }
 
+function CampaignSession(){const params=useSearchParams();return <CampaignEditorContent key={params.get('new')||params.get('draft')||params.get('duplicate')||'current'}/>;}
 export default function CampaignEditorPage() {
   return (
     <Suspense fallback={<div className="p-8 text-center text-slate-500">Carregando editor...</div>}>
-      <CampaignEditorContent />
+      <CampaignSession />
     </Suspense>
   );
 }

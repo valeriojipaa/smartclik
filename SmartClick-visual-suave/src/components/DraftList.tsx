@@ -1,0 +1,4 @@
+'use client';
+import {useEffect,useState} from 'react';
+import Link from 'next/link';
+export function DraftList(){const [drafts,setDrafts]=useState<Record<string,{title:string;updatedAt:string}>>({});useEffect(()=>{try{setDrafts(JSON.parse(localStorage.getItem('smartclick_drafts_index')||'{}'))}catch{}},[]);return <section className="bg-white rounded-2xl border p-5 m-4"><h2 className="font-bold mb-3">Rascunhos automáticos</h2><p className="text-xs mb-3">Salvos neste navegador.</p>{Object.entries(drafts).sort((a,b)=>b[1].updatedAt.localeCompare(a[1].updatedAt)).map(([id,d])=><Link key={id} href={'/campanhas/nova?draft='+encodeURIComponent(id)} className="block border rounded-lg p-3 mb-2 text-sm">{d.title} · Continuar edição →</Link>)}{!Object.keys(drafts).length&&<p className="text-xs">Seus próximos rascunhos aparecerão aqui.</p>}</section>}
