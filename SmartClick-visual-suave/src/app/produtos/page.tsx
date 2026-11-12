@@ -1,4 +1,5 @@
 'use client';
+import { ProductBackgroundRemoval } from '@/components/ProductBackgroundRemoval';
 import { PhotoUpload } from '@/components/PhotoUpload';
 
 import React, { useState, useEffect } from 'react';
@@ -73,14 +74,15 @@ export default function ProductsPage() {
         currentPrice: Number(editingProduct.currentPrice),
         category: (editingProduct.category as ProductCategory) || 'mercearia-basica',
         imageUrl: editingProduct.imageUrl || '',
+        originalImageUrl: editingProduct.originalImageUrl,
         isFavorite: false,
         createdAt: new Date().toISOString(),
       };
       updated = [newProd, ...products];
     }
 
+    try { saveProducts(updated); } catch { alert('Armazenamento cheio. O produto não foi salvo. Reduza a foto e tente novamente.'); return; }
     setProducts(updated);
-    saveProducts(updated);
     setIsEditModalOpen(false);
     setEditingProduct(null);
   };
@@ -305,7 +307,7 @@ export default function ProductsPage() {
                   />
                 </div>
 
-                <InternalImagePicker query={editingProduct?.name || ''} onChoose={product => setEditingProduct({ ...editingProduct, name: product.name, imageUrl: product.imageUrl, category: product.category, packageContent: product.packageContent, saleUnit: product.saleUnit, brand: '', notes: product.notes })} />
+                <InternalImagePicker query={editingProduct?.name || ''} onChoose={product => setEditingProduct({ ...editingProduct, name: product.name, imageUrl: product.imageUrl, originalImageUrl: product.imageUrl, category: product.category, packageContent: product.packageContent, saleUnit: product.saleUnit, brand: '', notes: product.notes })} />
                 {editingProduct?.imageUrl && <img src={editingProduct.imageUrl} alt="Foto selecionada" className="h-24 mx-auto object-contain"/>}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -390,18 +392,19 @@ export default function ProductsPage() {
 
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">URL da Imagem (Opcional)</label>
-                  <PhotoUpload onChange={url=>setEditingProduct({...editingProduct,imageUrl:url,notes:undefined})} />
+                  <PhotoUpload onChange={url=>setEditingProduct({...editingProduct,imageUrl:url,originalImageUrl:url,notes:undefined})} />
                   <input
-                    type="url"
+                    type="text"
                     value={editingProduct?.imageUrl || ''}
                     onChange={(e) =>
-                      setEditingProduct({ ...editingProduct, imageUrl: e.target.value })
+                      setEditingProduct({ ...editingProduct, imageUrl: e.target.value, originalImageUrl: e.target.value })
                     }
                     placeholder="https://exemplo.com/foto.jpg"
                     className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:border-purple-600 outline-none"
                   />
                 </div>
 
+                <ProductBackgroundRemoval imageUrl={editingProduct?.imageUrl} originalImageUrl={editingProduct?.originalImageUrl} onChange={(imageUrl, originalImageUrl) => setEditingProduct(previous => ({...previous, imageUrl, originalImageUrl}))} />
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
                   <button
                     type="button"

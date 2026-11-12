@@ -43,6 +43,7 @@ export interface Product {
   currentPrice: number; // Preço regular
   category: ProductCategory;
   imageUrl?: string;
+  originalImageUrl?: string;
   isFavorite?: boolean;
   notes?: string;
   createdAt: string;
