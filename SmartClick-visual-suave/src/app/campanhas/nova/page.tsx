@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { PhotoUpload } from '@/components/PhotoUpload';
+import { OptionSection } from '@/components/OptionSection';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
 import { BadgePicker } from '@/components/BadgePicker';
 import { FoodSearch } from '@/components/FoodSearch';
@@ -292,6 +293,7 @@ function CampaignEditorContent() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* PAINEL ESQUERDO: CONFIGURAÇÃO DOS PRODUTOS E PREÇOS */}
           <div className="lg:col-span-5 space-y-5">
+            <OptionSection title="Formato, modelo e validade">
             {/* 1. Escolha do Formato e Tema */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
               <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider">
@@ -405,8 +407,10 @@ function CampaignEditorContent() {
               </div>
             </div>
 
-            <BackgroundPicker value={backgroundId} onChange={setBackgroundId} />
-            <BadgePicker value={badgeUrl} onChange={setBadgeUrl} />
+            </OptionSection>
+            <OptionSection title="Fundo do encarte"><BackgroundPicker value={backgroundId} onChange={setBackgroundId} /></OptionSection>
+            <OptionSection title="Selo promocional"><BadgePicker value={badgeUrl} onChange={setBadgeUrl} /></OptionSection>
+            <OptionSection title={`Produtos e preços (${campaignItems.length})`} open>
             {/* 2. Gerenciador de Produtos da Campanha */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
@@ -559,8 +563,10 @@ function CampaignEditorContent() {
               </div>
             </div>
 
-            <FoodSearch onChoose={(product) => { const updated=[product,...allProducts.filter(p=>p.id!==product.id)];saveProducts(updated);setAllProducts(updated);handleAddItem(product); }} />
+            </OptionSection>
+            <OptionSection title="Buscar produto com foto"><FoodSearch onChoose={(product) => { const updated=[product,...allProducts.filter(p=>p.id!==product.id)];saveProducts(updated);setAllProducts(updated);handleAddItem(product); }} /></OptionSection>
 
+            <OptionSection title="Rodapé e condições">
             {/* 3. Rodapé Legal e Condições */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
               <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider">
@@ -601,10 +607,11 @@ function CampaignEditorContent() {
                 </div>
               </div>
             </div>
+            </OptionSection>
           </div>
 
           {/* PAINEL DIREITO: PRÉVIA REAL EM ALTA DEFINIÇÃO E DOWNLOAD */}
-          <div className="lg:col-span-7 space-y-6">
+          <div className="sc-editor-preview lg:col-span-7 space-y-6">
             <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Eye className="w-4 h-4 text-purple-600" />

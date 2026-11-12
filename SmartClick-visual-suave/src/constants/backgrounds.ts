@@ -1,4 +1,5 @@
 export const BACKGROUNDS = [
+ {id:'none',name:'Sem fundo',primary:'#ffffff',accent:'#ffffff',shape:'straight'},
  {id:'original',name:'Cores do modelo',primary:'',accent:'',shape:'straight'},
  {id:'comercial',name:'Comercial',primary:'#e53935',accent:'#ffc107',shape:'curve'},
  {id:'azul',name:'Azul moderno',primary:'#103aa9',accent:'#00cee3',shape:'ribbon'},
