@@ -97,7 +97,7 @@ function CampaignEditorContent() {
 
     try { const raw = localStorage.getItem(draftKey); if(raw) {const d=JSON.parse(raw);setTitle(d.title);setThemeId(d.themeId);setBadgeUrl(d.badgeUrl || '');if(d.artwork)setArtwork(d.artwork);setBackgroundId(d.backgroundId || 'original');setStartDate(d.startDate);setEndDate(d.endDate);setCampaignItems(d.items);setPageBreaks(d.pageBreaks||[]);setSelectedFormat(d.selectedFormat==='a5'?'a4':d.selectedFormat||'stories');setDraftReady(true);return;} } catch {}
     const preset=searchParams.get('preset');
-    if(searchParams.get('theme')){setThemeId(initialTheme);const files:Record<string,string>={'promocao':'01-promocao.png','ofertas-da-semana':'02-ofertas-da-semana.png','ofertas-do-dia':'03-ofertas-do-dia.png','fim-de-semana':'04-fim-de-semana.png','acougue':'05-acougue.png','feirinha':'06-feirinha.png','limpeza':'07-limpeza.png','black-friday':'08-black-friday.png','natal':'09-natal.png','reveillon':'10-reveillon.png'};setBadgeUrl('https://sihrhmizpigscavtrtyl.supabase.co/storage/v1/object/public/selos/'+files[initialTheme]);setBackgroundId(preset||({'feirinha':'verde','black-friday':'premium','ofertas-da-semana':'azul'}[initialTheme]||'comercial'));setTitle(VISUAL_THEMES[initialTheme]?.name||'Nova campanha');}
+    if(searchParams.get('theme')){setThemeId(initialTheme);const files:Record<string,string>={'promocao':'01-promocao.png','ofertas-da-semana':'02-ofertas-da-semana.png','ofertas-do-dia':'03-ofertas-do-dia.png','fim-de-semana':'04-fim-de-semana.png','acougue':'05-acougue.png','feirinha':'06-feirinha.png','limpeza':'07-limpeza.png','black-friday':'08-black-friday.png','natal':'09-natal.png','reveillon':'10-reveillon.png'};setBadgeUrl('https://sihrhmizpigscavtrtyl.supabase.co/storage/v1/object/public/selos/'+files[initialTheme]);setBackgroundId(preset||(({feirinha:'verde','black-friday':'premium','ofertas-da-semana':'azul'} as Partial<Record<VisualThemeId,string>>)[initialTheme]||'comercial'));setTitle(VISUAL_THEMES[initialTheme]?.name||'Nova campanha');}
     setDraftReady(true);
     // Carregar inicialmente os primeiros 6 produtos do catálogo se não houver duplicata
     if (prods.length > 0 && campaignItems.length === 0) {
@@ -513,3 +513,4 @@ export default function CampaignEditorPage() {
     </Suspense>
   );
 }
+
