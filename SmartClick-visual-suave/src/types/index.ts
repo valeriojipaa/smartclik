@@ -104,6 +104,7 @@ export interface VisualTheme {
 }
 
 export interface Campaign {
+  artwork?: { badge: {x:number;y:number;width:number}; logo: {x:number;y:number;width:number}; identity: string; italic: boolean; logoUrl?: string };
   backgroundId?: string;
   badgeUrl?: string;
   id: string;

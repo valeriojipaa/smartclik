@@ -54,6 +54,7 @@ function CampaignEditorContent() {
 
   const [store, setStore] = useState<StoreProfile>(getStoreProfile());
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [artwork,setArtwork] = useState<NonNullable<Campaign['artwork']>>({badge:{x:90,y:27,width:360},logo:{x:12,y:8,width:90},identity:'name',italic:false});
   const [backgroundId, setBackgroundId] = useState('original');
   const [badgeUrl, setBadgeUrl] = useState('');
   const [title, setTitle] = useState('Super Ofertas da Semana');
@@ -83,7 +84,7 @@ function CampaignEditorContent() {
       if (existing) {
         setTitle(`${existing.title} (Cópia)`);
         setThemeId(existing.themeId);
-        setBadgeUrl(existing.badgeUrl || '');
+        setBadgeUrl(existing.badgeUrl || '');if(existing.artwork)setArtwork(existing.artwork);
         setBackgroundId(existing.backgroundId || 'original');
         setCampaignItems(existing.items);
         setDraftReady(true);
@@ -91,7 +92,7 @@ function CampaignEditorContent() {
       }
     }
 
-    try { const raw = localStorage.getItem(draftKey); if(raw) {const d=JSON.parse(raw);setTitle(d.title);setThemeId(d.themeId);setBadgeUrl(d.badgeUrl || '');setBackgroundId(d.backgroundId || 'original');setStartDate(d.startDate);setEndDate(d.endDate);setCampaignItems(d.items);setDraftReady(true);return;} } catch {}
+    try { const raw = localStorage.getItem(draftKey); if(raw) {const d=JSON.parse(raw);setTitle(d.title);setThemeId(d.themeId);setBadgeUrl(d.badgeUrl || '');if(d.artwork)setArtwork(d.artwork);setBackgroundId(d.backgroundId || 'original');setStartDate(d.startDate);setEndDate(d.endDate);setCampaignItems(d.items);setDraftReady(true);return;} } catch {}
     setDraftReady(true);
     // Carregar inicialmente os primeiros 6 produtos do catálogo se não houver duplicata
     if (prods.length > 0 && campaignItems.length === 0) {
@@ -107,7 +108,7 @@ function CampaignEditorContent() {
     }
   }, [duplicateId]);
 
-  useEffect(() => { if(!draftReady)return; const timer=setTimeout(()=>{try{localStorage.setItem(draftKey,JSON.stringify({backgroundId,badgeUrl,title,themeId,startDate,endDate,items:campaignItems}));}catch{setExportMessage('Não foi possível salvar o rascunho neste navegador.');}},400);return()=>clearTimeout(timer);},[draftReady,draftKey,backgroundId,badgeUrl,title,themeId,startDate,endDate,campaignItems]);
+  useEffect(() => { if(!draftReady)return; const timer=setTimeout(()=>{try{localStorage.setItem(draftKey,JSON.stringify({artwork,backgroundId,badgeUrl,title,themeId,startDate,endDate,items:campaignItems}));}catch{setExportMessage('Não foi possível salvar o rascunho neste navegador.');}},400);return()=>clearTimeout(timer);},[draftReady,draftKey,artwork,backgroundId,badgeUrl,title,themeId,startDate,endDate,campaignItems]);
   const activeTheme = VISUAL_THEMES[themeId] || VISUAL_THEMES.promocao;
   const pages = chunkItemsByFormat(campaignItems, selectedFormat);
 
@@ -147,6 +148,7 @@ function CampaignEditorContent() {
       themeId,
       badgeUrl,
       backgroundId,
+      artwork,
       startDate,
       endDate,
       items: campaignItems,
@@ -409,6 +411,15 @@ function CampaignEditorContent() {
 
             </OptionSection>
             <OptionSection title="Fundo do encarte"><BackgroundPicker value={backgroundId} onChange={setBackgroundId} /></OptionSection>
+            <OptionSection title="Logotipo, nome e tamanho do selo">
+ <div className="p-4 space-y-4 text-xs">
+ <p>Clique no selo ou logotipo na prévia e arraste. Os ajustes ficam na área superior para preservar produtos e rodapé.</p>
+ <label className="block">Identificação da loja<select className="border rounded p-2 ml-2" value={artwork.identity} onChange={e=>setArtwork({...artwork,identity:e.target.value})}><option value="name">Nome em texto</option><option value="logo">Logotipo</option></select></label>
+ <label className="block"><input type="checkbox" checked={artwork.italic} onChange={e=>setArtwork({...artwork,italic:e.target.checked})}/> Nome em negrito e itálico</label>
+ <PhotoUpload onChange={url=>setArtwork({...artwork,logoUrl:url,identity:'logo'})}/>
+ {(['badge','logo'] as const).map(key=><label key={key} className="block">Tamanho do {key==='badge'?'selo':'logotipo'}<input aria-label={'Tamanho '+key} type="range" min={key==='badge'?100:40} max={key==='badge'?500:200} value={artwork[key].width} className="block w-full" onChange={e=>{const width=Number(e.target.value);setArtwork({...artwork,[key]:{...artwork[key],width,x:Math.min(artwork[key].x,540-width),y:Math.min(artwork[key].y,Math.max(0,165-Math.min(width*.48,165)))}})}}/></label>)}
+ <button type="button" className="border rounded p-2" onClick={()=>setArtwork({...artwork,badge:{x:90,y:27,width:360},logo:{x:12,y:8,width:90}})}>Restaurar posições</button>
+ </div></OptionSection>
             <OptionSection title="Selo promocional"><BadgePicker value={badgeUrl} onChange={setBadgeUrl} /></OptionSection>
             <OptionSection title={`Produtos e preços (${campaignItems.length})`} open>
             {/* 2. Gerenciador de Produtos da Campanha */}
@@ -647,6 +658,8 @@ function CampaignEditorContent() {
                   {/* Canvas do Encarte */}
                   <FlyerCanvas
                     id={`flyer-page-${pIndex}`}
+                    artwork={artwork}
+                    onArtworkChange={setArtwork}
                     backgroundId={backgroundId}
                     badgeUrl={badgeUrl}
                     theme={activeTheme}
