@@ -2,7 +2,7 @@
 import { PhotoUpload } from '@/components/PhotoUpload';
 
 import React, { useState, useEffect } from 'react';
-import { FoodSearch } from '@/components/FoodSearch';
+import { normalizeSearch } from '@/constants/internalProducts';
 import { MainLayout } from '@/components/MainLayout';
 import { Product, ProductCategory, CATEGORIES } from '@/types';
 import { getProducts, saveProducts } from '@/utils/storage';
@@ -86,8 +86,8 @@ export default function ProductsPage() {
 
   const filteredProducts = products.filter((p) => {
     const matchesSearch =
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.brand && p.brand.toLowerCase().includes(searchTerm.toLowerCase()));
+      normalizeSearch(p.name).includes(normalizeSearch(searchTerm)) ||
+      (p.brand && normalizeSearch(p.brand).includes(normalizeSearch(searchTerm)));
     const matchesCategory =
       selectedCategory === 'all' || p.category === selectedCategory;
     const matchesFav = onlyFavorites ? p.isFavorite : true;
@@ -96,7 +96,7 @@ export default function ProductsPage() {
   });
 
   return (
-    <MainLayout><div className="max-w-6xl mx-auto w-full px-4 pt-6"><FoodSearch onChoose={p=>{const updated=[p,...products.filter(item=>item.id!==p.id)];saveProducts(updated);setProducts(updated);}} /></div>
+    <MainLayout>
       <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -236,7 +236,7 @@ export default function ProductsPage() {
               {/* Preço e Ações */}
               <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between">
                 <span className="text-sm font-black text-purple-700">
-                  {formatCurrencyBRL(prod.currentPrice)}
+                  {prod.currentPrice > 0 ? formatCurrencyBRL(prod.currentPrice) : 'Definir preço'}
                 </span>
 
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
