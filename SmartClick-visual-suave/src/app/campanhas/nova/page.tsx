@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { FoodSearch } from '@/components/FoodSearch';
 import { MainLayout } from '@/components/MainLayout';
 import { FlyerCanvas } from '@/components/FlyerCanvas';
 import {
@@ -15,6 +16,7 @@ import {
 import { VISUAL_THEMES, PROMO_BADGES } from '@/constants/themes';
 import {
   getProducts,
+  saveProducts,
   getStoreProfile,
   saveCampaign,
   getCampaigns,
@@ -56,11 +58,13 @@ function CampaignEditorContent() {
   );
   const [selectedFormat, setSelectedFormat] = useState<FlyerFormat>('stories');
   const [campaignItems, setCampaignItems] = useState<CampaignItem[]>([]);
-  const [hasStockLimit, setHasStockLimit] = useState(true);
+  const [hasStockLimit, setHasStockLimit] = useState(false);
   const [hasIllustrativeImagesNotice, setHasIllustrativeImagesNotice] = useState(true);
   const [isExporting, setIsExporting] = useState(false);
   const [exportMessage, setExportMessage] = useState('');
 
+  const draftKey = 'smartclick_campaign_draft_v2' + (duplicateId || '');
+  const [draftReady, setDraftReady] = useState(false);
   const pagesContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -74,24 +78,28 @@ function CampaignEditorContent() {
         setTitle(`${existing.title} (Cópia)`);
         setThemeId(existing.themeId);
         setCampaignItems(existing.items);
+        setDraftReady(true);
         return;
       }
     }
 
+    try { const raw = localStorage.getItem(draftKey); if(raw) {const d=JSON.parse(raw);setTitle(d.title);setThemeId(d.themeId);setStartDate(d.startDate);setEndDate(d.endDate);setCampaignItems(d.items);setDraftReady(true);return;} } catch {}
+    setDraftReady(true);
     // Carregar inicialmente os primeiros 6 produtos do catálogo se não houver duplicata
     if (prods.length > 0 && campaignItems.length === 0) {
       const initialItems: CampaignItem[] = prods.slice(0, 6).map((p) => ({
         id: `ci-${Date.now()}-${p.id}`,
         productId: p.id,
         product: p,
-        promoPrice: Number((p.currentPrice * 0.85).toFixed(2)), // 15% de desconto promocional
-        regularPrice: p.currentPrice,
+        promoPrice: p.currentPrice,
+        regularPrice: undefined,
         highlightBadge: '',
       }));
       setCampaignItems(initialItems);
     }
   }, [duplicateId]);
 
+  useEffect(() => { if(!draftReady)return; const timer=setTimeout(()=>{try{localStorage.setItem(draftKey,JSON.stringify({title,themeId,startDate,endDate,items:campaignItems}));}catch{setExportMessage('Não foi possível salvar o rascunho neste navegador.');}},400);return()=>clearTimeout(timer);},[draftReady,draftKey,title,themeId,startDate,endDate,campaignItems]);
   const activeTheme = VISUAL_THEMES[themeId] || VISUAL_THEMES.promocao;
   const pages = chunkItemsByFormat(campaignItems, selectedFormat);
 
@@ -105,8 +113,8 @@ function CampaignEditorContent() {
       id: `ci-${Date.now()}-${product.id}`,
       productId: product.id,
       product,
-      promoPrice: Number((product.currentPrice * 0.85).toFixed(2)),
-      regularPrice: product.currentPrice,
+      promoPrice: product.currentPrice,
+      regularPrice: undefined,
       highlightBadge: '',
     };
     setCampaignItems([...campaignItems, newItem]);
@@ -539,6 +547,8 @@ function CampaignEditorContent() {
               </div>
             </div>
 
+            <FoodSearch onChoose={(product) => { const updated=[product,...allProducts.filter(p=>p.id!==product.id)];saveProducts(updated);setAllProducts(updated);handleAddItem(product); }} />
+
             {/* 3. Rodapé Legal e Condições */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
               <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider">
@@ -587,7 +597,7 @@ function CampaignEditorContent() {
               <div className="flex items-center gap-2">
                 <Eye className="w-4 h-4 text-purple-600" />
                 <span className="text-xs font-bold text-slate-900">
-                  Prévia em Tempo Real ({pages.length} página(s) gerada(s))
+                  Prévia em Tempo Real ({pages.length} página(s) gerada(s)) — até 22 itens por página
                 </span>
               </div>
               <span className="text-[11px] font-semibold text-slate-500">
