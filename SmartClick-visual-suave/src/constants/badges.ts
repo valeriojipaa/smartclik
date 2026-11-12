@@ -1,0 +1,3 @@
+export const BADGES = [
+ ['01-promocao.png','Promoção'],['02-ofertas-da-semana.png','Ofertas da semana'],['03-ofertas-do-dia.png','Ofertas do dia'],['04-fim-de-semana.png','Fim de semana'],['05-acougue.png','Açougue'],['06-feirinha.png','Feirinha'],['07-limpeza.png','Limpeza'],['08-black-friday.png','Black Friday'],['09-natal.png','Natal'],['10-reveillon.png','Réveillon'],['11-papai-noel-primeira-versao.png','Papai Noel — clássico'],['12-papai-noel-estilizado.png','Papai Noel — estilizado'],
+].map(([file,name])=>({file,name,url:`https://sihrhmizpigscavtrtyl.supabase.co/storage/v1/object/public/selos/${file}`}));

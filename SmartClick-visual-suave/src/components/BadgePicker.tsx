@@ -1,0 +1,5 @@
+'use client';
+import { BADGES } from '@/constants/badges';
+export function BadgePicker({value,onChange}:{value:string;onChange:(v:string)=>void}){
+ return <section className="bg-white p-5 rounded-2xl border border-slate-200 space-y-3"><h3 className="font-bold text-sm">Selo do encarte</h3><p className="text-xs text-slate-500">Escolha um selo. Sua escolha é mantida nos três formatos.</p><div className="grid grid-cols-3 gap-2"><button type="button" onClick={()=>onChange('')} aria-pressed={!value} className="border rounded-xl p-3 text-xs" style={{borderColor:!value?'#9265c5':undefined}}>Sem selo</button>{BADGES.map(b=><button type="button" key={b.file} aria-pressed={value===b.url} onClick={()=>onChange(b.url)} className="border rounded-xl p-2 text-xs" style={{borderColor:value===b.url?'#9265c5':undefined,background:value===b.url?'#f6f0fc':'#fafafa'}}><img loading="lazy" src={b.url} alt={b.name} style={{width:'100%',height:70,objectFit:'contain'}}/><span>{b.name}</span></button>)}</div></section>
+}

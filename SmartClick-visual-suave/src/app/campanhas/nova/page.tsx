@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { PhotoUpload } from '@/components/PhotoUpload';
+import { BackgroundPicker } from '@/components/BackgroundPicker';
+import { BadgePicker } from '@/components/BadgePicker';
 import { FoodSearch } from '@/components/FoodSearch';
 import { MainLayout } from '@/components/MainLayout';
 import { FlyerCanvas } from '@/components/FlyerCanvas';
@@ -51,6 +53,8 @@ function CampaignEditorContent() {
 
   const [store, setStore] = useState<StoreProfile>(getStoreProfile());
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [backgroundId, setBackgroundId] = useState('original');
+  const [badgeUrl, setBadgeUrl] = useState('');
   const [title, setTitle] = useState('Super Ofertas da Semana');
   const [themeId, setThemeId] = useState<VisualThemeId>(initialTheme);
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
@@ -78,13 +82,15 @@ function CampaignEditorContent() {
       if (existing) {
         setTitle(`${existing.title} (Cópia)`);
         setThemeId(existing.themeId);
+        setBadgeUrl(existing.badgeUrl || '');
+        setBackgroundId(existing.backgroundId || 'original');
         setCampaignItems(existing.items);
         setDraftReady(true);
         return;
       }
     }
 
-    try { const raw = localStorage.getItem(draftKey); if(raw) {const d=JSON.parse(raw);setTitle(d.title);setThemeId(d.themeId);setStartDate(d.startDate);setEndDate(d.endDate);setCampaignItems(d.items);setDraftReady(true);return;} } catch {}
+    try { const raw = localStorage.getItem(draftKey); if(raw) {const d=JSON.parse(raw);setTitle(d.title);setThemeId(d.themeId);setBadgeUrl(d.badgeUrl || '');setBackgroundId(d.backgroundId || 'original');setStartDate(d.startDate);setEndDate(d.endDate);setCampaignItems(d.items);setDraftReady(true);return;} } catch {}
     setDraftReady(true);
     // Carregar inicialmente os primeiros 6 produtos do catálogo se não houver duplicata
     if (prods.length > 0 && campaignItems.length === 0) {
@@ -100,7 +106,7 @@ function CampaignEditorContent() {
     }
   }, [duplicateId]);
 
-  useEffect(() => { if(!draftReady)return; const timer=setTimeout(()=>{try{localStorage.setItem(draftKey,JSON.stringify({title,themeId,startDate,endDate,items:campaignItems}));}catch{setExportMessage('Não foi possível salvar o rascunho neste navegador.');}},400);return()=>clearTimeout(timer);},[draftReady,draftKey,title,themeId,startDate,endDate,campaignItems]);
+  useEffect(() => { if(!draftReady)return; const timer=setTimeout(()=>{try{localStorage.setItem(draftKey,JSON.stringify({backgroundId,badgeUrl,title,themeId,startDate,endDate,items:campaignItems}));}catch{setExportMessage('Não foi possível salvar o rascunho neste navegador.');}},400);return()=>clearTimeout(timer);},[draftReady,draftKey,backgroundId,badgeUrl,title,themeId,startDate,endDate,campaignItems]);
   const activeTheme = VISUAL_THEMES[themeId] || VISUAL_THEMES.promocao;
   const pages = chunkItemsByFormat(campaignItems, selectedFormat);
 
@@ -138,6 +144,8 @@ function CampaignEditorContent() {
       storeId: store.id,
       title,
       themeId,
+      badgeUrl,
+      backgroundId,
       startDate,
       endDate,
       items: campaignItems,
@@ -397,6 +405,8 @@ function CampaignEditorContent() {
               </div>
             </div>
 
+            <BackgroundPicker value={backgroundId} onChange={setBackgroundId} />
+            <BadgePicker value={badgeUrl} onChange={setBadgeUrl} />
             {/* 2. Gerenciador de Produtos da Campanha */}
             <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
@@ -630,6 +640,8 @@ function CampaignEditorContent() {
                   {/* Canvas do Encarte */}
                   <FlyerCanvas
                     id={`flyer-page-${pIndex}`}
+                    backgroundId={backgroundId}
+                    badgeUrl={badgeUrl}
                     theme={activeTheme}
                     store={store}
                     campaignTitle={title}

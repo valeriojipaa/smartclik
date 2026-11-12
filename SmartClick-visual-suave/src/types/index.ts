@@ -104,6 +104,8 @@ export interface VisualTheme {
 }
 
 export interface Campaign {
+  backgroundId?: string;
+  badgeUrl?: string;
   id: string;
   storeId: string;
   title: string;
