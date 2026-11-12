@@ -2,6 +2,7 @@
 import { PhotoUpload } from '@/components/PhotoUpload';
 
 import React, { useState, useEffect } from 'react';
+import { InternalImagePicker } from '@/components/InternalImagePicker';
 import { normalizeSearch } from '@/constants/internalProducts';
 import { MainLayout } from '@/components/MainLayout';
 import { Product, ProductCategory, CATEGORIES } from '@/types';
@@ -276,7 +277,7 @@ export default function ProductsPage() {
         {/* Modal de Criação / Edição de Produto */}
         {isEditModalOpen && (
           <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200">
               <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
                 <h3 className="font-bold text-sm text-slate-900">
                   {editingProduct?.id ? 'Editar Produto' : 'Novo Produto'}
@@ -304,6 +305,8 @@ export default function ProductsPage() {
                   />
                 </div>
 
+                <InternalImagePicker query={editingProduct?.name || ''} onChoose={product => setEditingProduct({ ...editingProduct, name: product.name, imageUrl: product.imageUrl, category: product.category, packageContent: product.packageContent, saleUnit: product.saleUnit, brand: '', notes: product.notes })} />
+                {editingProduct?.imageUrl && <img src={editingProduct.imageUrl} alt="Foto selecionada" className="h-24 mx-auto object-contain"/>}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block font-bold text-slate-700 mb-1">Marca (Opcional)</label>
