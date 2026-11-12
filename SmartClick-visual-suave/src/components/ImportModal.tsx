@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
+import {getMeatImage} from '@/utils/meatImages';
 import * as XLSX from 'xlsx';
 import { Product, ProductCategory, CATEGORIES } from '@/types';
 import {
@@ -140,7 +141,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({
             saleUnit: unit,
             currentPrice: price || 0,
             category,
-            imageUrl: rawImage ? String(rawImage).trim() : '',
+            imageUrl: rawImage ? String(rawImage).trim() : (getMeatImage(String(rawName || '')) || ''),
             isFavorite: false,
             createdAt: new Date().toISOString(),
           },

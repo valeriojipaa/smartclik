@@ -1,4 +1,5 @@
 import { Campaign, Product, StoreProfile } from '@/types';
+import {getMeatImage} from './meatImages';
 import { INITIAL_PRODUCTS } from '@/constants/sampleProducts';
 
 const STORAGE_KEYS = {
@@ -36,14 +37,14 @@ export function saveStoreProfile(profile: StoreProfile): void {
 }
 
 export function getProducts(): Product[] {
-  if (typeof window === 'undefined') return INITIAL_PRODUCTS;
+  if (typeof window === 'undefined') return INITIAL_PRODUCTS.map(p=>({...p,imageUrl:p.imageUrl||getMeatImage(p.name)}));
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.PRODUCTS);
     if (!raw) {
       localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(INITIAL_PRODUCTS));
       return INITIAL_PRODUCTS;
     }
-    return JSON.parse(raw);
+    return (JSON.parse(raw) as Product[]).map(p=>({...p,imageUrl:p.imageUrl||getMeatImage(p.name)}));
   } catch {
     return INITIAL_PRODUCTS;
   }
