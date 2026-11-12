@@ -59,7 +59,7 @@ export interface CampaignItem {
   conditions?: string; // Ex: 'A partir de 3 unidades'
 }
 
-export type FlyerFormat = 'stories' | 'feed' | 'a4';
+export type FlyerFormat = 'stories' | 'feed' | 'a4' | 'a5';
 
 export interface StoreProfile {
   id: string;
@@ -104,7 +104,7 @@ export interface VisualTheme {
 }
 
 export interface Campaign {
-  artwork?: { badge: {x:number;y:number;width:number}; logo: {x:number;y:number;width:number}; identity: string; italic: boolean; logoUrl?: string };
+  artwork?: { badge: {x:number;y:number;width:number}; logo: {x:number;y:number;width:number}; textColor?: string; identity: string; italic: boolean; logoUrl?: string };
   backgroundId?: string;
   badgeUrl?: string;
   id: string;

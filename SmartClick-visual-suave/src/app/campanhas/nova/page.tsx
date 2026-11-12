@@ -109,6 +109,7 @@ function CampaignEditorContent() {
   }, [duplicateId]);
 
   useEffect(() => { if(!draftReady)return; const timer=setTimeout(()=>{try{localStorage.setItem(draftKey,JSON.stringify({artwork,backgroundId,badgeUrl,title,themeId,startDate,endDate,items:campaignItems}));}catch{setExportMessage('Não foi possível salvar o rascunho neste navegador.');}},400);return()=>clearTimeout(timer);},[draftReady,draftKey,artwork,backgroundId,badgeUrl,title,themeId,startDate,endDate,campaignItems]);
+  useEffect(()=>{const preset=searchParams.get('preset');if(!preset)return;setThemeId('black-friday');setBadgeUrl('https://sihrhmizpigscavtrtyl.supabase.co/storage/v1/object/public/selos/08-black-friday.png');setBackgroundId(preset);setTitle('Black Friday');},[searchParams]);
   const activeTheme = VISUAL_THEMES[themeId] || VISUAL_THEMES.promocao;
   const pages = chunkItemsByFormat(campaignItems, selectedFormat);
 
@@ -295,128 +296,19 @@ function CampaignEditorContent() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* PAINEL ESQUERDO: CONFIGURAÇÃO DOS PRODUTOS E PREÇOS */}
           <div className="lg:col-span-5 space-y-5">
-            <OptionSection title="Formato, modelo e validade">
-            {/* 1. Escolha do Formato e Tema */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
-              <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider">
-                1. Formato e Tema Visual
-              </h3>
-
-              {/* Formatos com proporção */}
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  onClick={() => setSelectedFormat('stories')}
-                  className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                    selectedFormat === 'stories'
-                      ? 'border-purple-600 bg-purple-50/50 text-purple-700 font-bold shadow-sm'
-                      : 'border-slate-200 hover:bg-slate-50 text-slate-600 font-medium'
-                  }`}
-                >
-                  <Smartphone className="w-5 h-5 mb-1" />
-                  <span className="text-xs">Stories / Zap</span>
-                  <span className="text-[10px] text-slate-400 font-normal">1080×1920</span>
-                </button>
-
-                <button
-                  onClick={() => setSelectedFormat('feed')}
-                  className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                    selectedFormat === 'feed'
-                      ? 'border-purple-600 bg-purple-50/50 text-purple-700 font-bold shadow-sm'
-                      : 'border-slate-200 hover:bg-slate-50 text-slate-600 font-medium'
-                  }`}
-                >
-                  <Share2 className="w-5 h-5 mb-1" />
-                  <span className="text-xs">Feed</span>
-                  <span className="text-[10px] text-slate-400 font-normal">1080×1350</span>
-                </button>
-
-                <button
-                  onClick={() => setSelectedFormat('a4')}
-                  className={`flex flex-col items-center justify-center p-3 rounded-xl border transition-all ${
-                    selectedFormat === 'a4'
-                      ? 'border-purple-600 bg-purple-50/50 text-purple-700 font-bold shadow-sm'
-                      : 'border-slate-200 hover:bg-slate-50 text-slate-600 font-medium'
-                  }`}
-                >
-                  <FileText className="w-5 h-5 mb-1" />
-                  <span className="text-xs">Impresso A4</span>
-                  <span className="text-[10px] text-slate-400 font-normal">210×297mm</span>
-                </button>
-              </div>
-
-              {/* Seletor de Modelo Visual (10 Modelos) */}
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Modelo Visual (10 Opções)
-                </label>
-                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-                  {Object.values(VISUAL_THEMES).map((thm) => (
-                    <button
-                      key={thm.id}
-                      onClick={() => setThemeId(thm.id)}
-                      className={`text-left p-2.5 rounded-xl border transition-all flex items-center justify-between ${
-                        themeId === thm.id
-                          ? 'border-purple-600 bg-purple-50 ring-2 ring-purple-600/20'
-                          : 'border-slate-200 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="space-y-0.5">
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className="w-2.5 h-2.5 rounded-full"
-                            style={{ backgroundColor: thm.primaryColor }}
-                          />
-                          <span className="text-xs font-extrabold text-slate-900 leading-tight">
-                            {thm.name}
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-slate-600 line-clamp-1">
-                          {thm.badgeDefault}
-                        </span>
-                      </div>
-                      {themeId === thm.id && (
-                        <Check className="w-4 h-4 text-purple-600 shrink-0" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Datas de Validade */}
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Válido a partir de
-                  </label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-purple-600"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                    Até
-                  </label>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg text-xs outline-none focus:border-purple-600"
-                  />
-                </div>
-              </div>
-            </div>
-
-            </OptionSection>
+            <section className="bg-white border rounded-2xl p-5 space-y-4">
+<h2 className="text-lg font-bold">QUAL FORMATO VOCÊ PRECISA?</h2><div className="grid grid-cols-2 gap-2">{([{id:'stories',name:'Stories',info:'1080 × 1920'},{id:'feed',name:'Feed',info:'1080 × 1350'},{id:'a5',name:'Panfleto · meio A4',info:'148 × 210 mm'},{id:'a4',name:'Panfleto · A4',info:'210 × 297 mm'}] as const).map(f=><button key={f.id} type="button" onClick={()=>setSelectedFormat(f.id)} aria-pressed={selectedFormat===f.id} className="border rounded-xl p-3 text-sm" style={{borderColor:selectedFormat===f.id?'#9565c9':'#e8e0ee',background:selectedFormat===f.id?'#f5effb':'white'}}>{f.name}<small className="block text-xs">{f.info}</small></button>)}</div>
+<div className="grid grid-cols-2 gap-3"><label className="text-xs">Início das ofertas<input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} className="block border rounded p-2 w-full"/></label><label className="text-xs">Fim das ofertas<input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} className="block border rounded p-2 w-full"/></label></div>
+{backgroundId==='none'&&<label className="block text-xs">Cor do texto no cabeçalho<input type="color" value={artwork.textColor||'#202020'} onChange={e=>setArtwork({...artwork,textColor:e.target.value})}/></label>}
+</section>
             <OptionSection title="Fundo do encarte"><BackgroundPicker value={backgroundId} onChange={setBackgroundId} /></OptionSection>
-            <OptionSection title="Logotipo, nome e tamanho do selo">
+            <OptionSection title="LOGOTIPO / NOME">
  <div className="p-4 space-y-4 text-xs">
  <p>Clique no selo ou logotipo na prévia e arraste. Os ajustes ficam na área superior para preservar produtos e rodapé.</p>
  <label className="block">Identificação da loja<select className="border rounded p-2 ml-2" value={artwork.identity} onChange={e=>setArtwork({...artwork,identity:e.target.value})}><option value="name">Nome em texto</option><option value="logo">Logotipo</option></select></label>
  <label className="block"><input type="checkbox" checked={artwork.italic} onChange={e=>setArtwork({...artwork,italic:e.target.checked})}/> Nome em negrito e itálico</label>
  <PhotoUpload onChange={url=>setArtwork({...artwork,logoUrl:url,identity:'logo'})}/>
+ <button type="button" className="border rounded p-2" onClick={async()=>{const src=artwork.logoUrl||store.logoUrl;if(!src){alert('Envie um logotipo primeiro.');return}try{const im=new Image();im.crossOrigin='anonymous';await new Promise<void>((ok,no)=>{im.onload=()=>ok();im.onerror=no;im.src=src});const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const ctx=c.getContext('2d')!;ctx.drawImage(im,0,0);const pixels=ctx.getImageData(0,0,c.width,c.height);const seen=new Uint8Array(c.width*c.height),queue:number[]=[];const add=(i:number)=>{if(seen[i])return;seen[i]=1;const k=i*4;if(pixels.data[k]>235&&pixels.data[k+1]>235&&pixels.data[k+2]>235)queue.push(i)};for(let x=0;x<c.width;x++){add(x);add((c.height-1)*c.width+x)}for(let y=0;y<c.height;y++){add(y*c.width);add(y*c.width+c.width-1)}for(let n=0;n<queue.length;n++){const i=queue[n];pixels.data[i*4+3]=0;if(i%c.width)add(i-1);if(i%c.width<c.width-1)add(i+1);if(i>=c.width)add(i-c.width);if(i<c.width*(c.height-1))add(i+c.width)}ctx.putImageData(pixels,0,0);setArtwork({...artwork,logoUrl:c.toDataURL('image/png'),identity:'logo'});}catch{alert('Envie o arquivo do logo para remover o fundo branco.')}}}>Remover fundo branco do logo</button><p className="text-xs">Remove branco conectado às bordas. Confira o resultado; você pode reenviar o original.</p>
  {(['badge','logo'] as const).map(key=><label key={key} className="block">Tamanho do {key==='badge'?'selo':'logotipo'}<input aria-label={'Tamanho '+key} type="range" min={key==='badge'?100:40} max={key==='badge'?500:200} value={artwork[key].width} className="block w-full" onChange={e=>{const width=Number(e.target.value);setArtwork({...artwork,[key]:{...artwork[key],width,x:Math.min(artwork[key].x,540-width),y:Math.min(artwork[key].y,Math.max(0,165-Math.min(width*.48,165)))}})}}/></label>)}
  <button type="button" className="border rounded p-2" onClick={()=>setArtwork({...artwork,badge:{x:90,y:27,width:360},logo:{x:12,y:8,width:90}})}>Restaurar posições</button>
  </div></OptionSection>

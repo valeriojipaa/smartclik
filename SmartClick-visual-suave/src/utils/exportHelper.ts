@@ -9,6 +9,7 @@ export async function exportElementToPng(element: HTMLElement, filename: string)
     }
 
     const dataUrl = await toPng(element, {
+      filter: (node: HTMLElement) => !node.hasAttribute?.('data-editor-control'),
       quality: 0.95,
       pixelRatio: 2, // Garantir alta resolução (300 DPI equivalente)
       cacheBust: true,
@@ -27,7 +28,7 @@ export async function exportElementToPng(element: HTMLElement, filename: string)
 export async function exportElementsToPdf(
   elements: HTMLElement[],
   filename: string,
-  format: 'stories' | 'feed' | 'a4'
+  format: 'stories' | 'feed' | 'a4' | 'a5'
 ): Promise<void> {
   try {
     if (document.fonts) {
@@ -48,6 +49,7 @@ export async function exportElementsToPdf(
       pdfHeight = 135; // 4:5
     }
 
+    if(format==='a5'){pdfWidth=148;pdfHeight=210;}
     const pdf = new jsPDF({
       orientation,
       unit: 'mm',
@@ -57,7 +59,8 @@ export async function exportElementsToPdf(
     for (let i = 0; i < elements.length; i++) {
       const el = elements[i];
       const dataUrl = await toPng(el, {
-        quality: 0.95,
+        filter: (node: HTMLElement) => !node.hasAttribute?.('data-editor-control'),
+      quality: 0.95,
         pixelRatio: 2,
         cacheBust: true,
       });

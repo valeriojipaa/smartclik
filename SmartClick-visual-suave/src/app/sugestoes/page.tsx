@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { BADGES } from '@/constants/badges';
 import { MainLayout } from '@/components/MainLayout';
 import { VISUAL_THEMES } from '@/constants/themes';
 import {
@@ -125,6 +126,7 @@ export default function SuggestionsPage() {
 
         {/* Grade de Campanhas Sugeridas */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {new Date().getMonth()===10&&['premium','marinho','grafite'].map((preset,i)=><div key={preset} className="bg-white rounded-2xl p-5 border space-y-3"><div style={{background:['#202020','#173553','#34383f'][i],borderRadius:12,padding:16}}><img src={BADGES.find(b=>b.file==='08-black-friday.png')!.url} alt="Black Friday" style={{width:'100%',height:130,objectFit:'contain'}}/></div><h3 className="font-bold">Black Friday · {['Dourado','Marinho','Grafite'][i]}</h3><p className="text-xs">Selo e fundo prontos. Você escolhe os produtos, preços e validade.</p><Link className="block text-purple-600 font-bold text-sm" href={'/campanhas/nova?theme=black-friday&preset='+preset}>Usar este estilo →</Link></div>)}
           {MONTHLY_SUGGESTIONS.map((sug) => {
             const theme = VISUAL_THEMES[sug.themeId];
             return (
