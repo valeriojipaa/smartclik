@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { PhotoUpload } from '@/components/PhotoUpload';
 import { FoodSearch } from '@/components/FoodSearch';
 import { MainLayout } from '@/components/MainLayout';
 import { FlyerCanvas } from '@/components/FlyerCanvas';
@@ -433,6 +434,7 @@ function CampaignEditorContent() {
                       </button>
                     </div>
 
+                    <PhotoUpload onChange={url=>{const product={...item.product,imageUrl:url,notes:undefined};handleUpdateItem(item.id,{product});const updated=allProducts.map(p=>p.id===product.id?product:p);saveProducts(updated);setAllProducts(updated);}} />
                     {/* Preços: De / Por */}
                     <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200/60">
                       <div>

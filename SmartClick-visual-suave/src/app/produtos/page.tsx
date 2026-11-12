@@ -1,4 +1,5 @@
 'use client';
+import { PhotoUpload } from '@/components/PhotoUpload';
 
 import React, { useState, useEffect } from 'react';
 import { FoodSearch } from '@/components/FoodSearch';
@@ -386,6 +387,7 @@ export default function ProductsPage() {
 
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">URL da Imagem (Opcional)</label>
+                  <PhotoUpload onChange={url=>setEditingProduct({...editingProduct,imageUrl:url,notes:undefined})} />
                   <input
                     type="url"
                     value={editingProduct?.imageUrl || ''}

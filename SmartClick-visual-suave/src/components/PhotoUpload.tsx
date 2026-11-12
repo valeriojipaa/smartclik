@@ -1,0 +1,4 @@
+'use client';
+export function PhotoUpload({onChange}:{onChange:(url:string)=>void}){
+ return <label className="block text-xs font-medium py-2">Enviar foto própria<input type="file" accept="image/png,image/jpeg,image/webp" className="block mt-2 text-xs max-w-full" onChange={async e=>{const f=e.target.files?.[0];if(!f)return;if(!['image/png','image/jpeg','image/webp'].includes(f.type)||f.size>5*1024*1024){alert('Envie PNG, JPG ou WebP de até 5 MB.');return}const url=URL.createObjectURL(f);const im=new Image();im.onload=()=>{const c=document.createElement('canvas');const ratio=Math.min(1,900/Math.max(im.width,im.height));c.width=Math.round(im.width*ratio);c.height=Math.round(im.height*ratio);c.getContext('2d')!.drawImage(im,0,0,c.width,c.height);onChange(c.toDataURL('image/webp',.85));URL.revokeObjectURL(url)};im.onerror=()=>{URL.revokeObjectURL(url);alert('Imagem inválida.')};im.src=url;}}/></label>
+}
