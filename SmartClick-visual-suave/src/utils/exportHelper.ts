@@ -1,6 +1,7 @@
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
 
+async function ready(element:HTMLElement){await document.fonts?.ready;await Promise.all(Array.from(element.querySelectorAll('img')).map(im=>im.decode().catch(()=>{throw Error('Imagem não carregou: '+im.alt)})));await new Promise<void>(r=>requestAnimationFrame(()=>requestAnimationFrame(()=>r())));}
 export async function exportElementToPng(element: HTMLElement, filename: string): Promise<void> {
   try {
     // Aguardar fontes carregarem
@@ -8,10 +9,11 @@ export async function exportElementToPng(element: HTMLElement, filename: string)
       await document.fonts.ready;
     }
 
+    await ready(element);
     const dataUrl = await toPng(element, {
       filter: (node: HTMLElement) => !node.hasAttribute?.('data-editor-control'),
       quality: 0.95,
-      pixelRatio: 2, // Garantir alta resolução (300 DPI equivalente)
+      pixelRatio: Math.abs(element.offsetHeight/element.offsetWidth-297/210)<.01?2480/540:2,
       cacheBust: true,
     });
 
@@ -58,10 +60,11 @@ export async function exportElementsToPdf(
 
     for (let i = 0; i < elements.length; i++) {
       const el = elements[i];
+      await ready(el);
       const dataUrl = await toPng(el, {
         filter: (node: HTMLElement) => !node.hasAttribute?.('data-editor-control'),
       quality: 0.95,
-        pixelRatio: 2,
+        pixelRatio: format==='a4'?2480/540:2,
         cacheBust: true,
       });
 

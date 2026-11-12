@@ -1,516 +1,62 @@
 'use client';
-
-import React, { useState, useEffect, useRef, Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { PhotoUpload } from '@/components/PhotoUpload';
-import { OptionSection } from '@/components/OptionSection';
-import { BackgroundPicker } from '@/components/BackgroundPicker';
-import { BadgePicker } from '@/components/BadgePicker';
-
-import { MainLayout } from '@/components/MainLayout';
-import { FlyerCanvas } from '@/components/FlyerCanvas';
-import {
-  Campaign,
-  CampaignItem,
-  FlyerFormat,
-  Product,
-  StoreProfile,
-  VisualThemeId,
-} from '@/types';
-import { VISUAL_THEMES, PROMO_BADGES } from '@/constants/themes';
-import {
-  getProducts,
-  saveProducts,
-  getStoreProfile,
-  saveCampaign,
-  getCampaigns,
-} from '@/utils/storage';
-import { chunkItemsByFormat } from '@/utils/layoutEngine';
-import { exportElementToPng, exportElementsToPdf } from '@/utils/exportHelper';
-import { formatCurrencyBRL } from '@/utils/importHelper';
-import {
-  ArrowLeft,
-  Download,
-  FileDown,
-  Sparkles,
-  Check,
-  Plus,
-  Trash2,
-  Settings2,
-  Smartphone,
-  Share2,
-  FileText,
-  Eye,
-  ChevronRight,
-  AlertCircle,
-  Copy,
-} from 'lucide-react';
-
-function CampaignEditorContent() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const initialTheme = (searchParams.get('theme') as VisualThemeId) || 'promocao';
-  const duplicateId = searchParams.get('duplicate');
-
-  const [store, setStore] = useState<StoreProfile>(getStoreProfile());
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
-  const [artwork,setArtwork] = useState<NonNullable<Campaign['artwork']>>({badge:{x:90,y:27,width:360},logo:{x:12,y:8,width:90},identity:'name',italic:false});
-  const [backgroundId, setBackgroundId] = useState('original');
-  const [badgeUrl, setBadgeUrl] = useState('');
-  const [title, setTitle] = useState('Super Ofertas da Semana');
-  const [themeId, setThemeId] = useState<VisualThemeId>(initialTheme);
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(
-    new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-  );
-  const [selectedFormat, setSelectedFormat] = useState<FlyerFormat>('stories');
-  const [campaignItems, setCampaignItems] = useState<CampaignItem[]>([]);
-  const [hasStockLimit, setHasStockLimit] = useState(false);
-  const [hasIllustrativeImagesNotice, setHasIllustrativeImagesNotice] = useState(true);
-  const [isExporting, setIsExporting] = useState(false);
-  const [exportMessage, setExportMessage] = useState('');
-
-  const sessionId=searchParams.get('new')||searchParams.get('draft')||duplicateId||'current';
-  const draftKey='smartclick_campaign_draft_v3_'+sessionId;
-  const [pageBreaks,setPageBreaks]=useState<number[]>([]);
-  const [draftWarning,setDraftWarning]=useState('');
-  const [draftReady, setDraftReady] = useState(false);
-  const pagesContainerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const prods = getProducts();
-    setAllProducts(prods);
-    setStore(getStoreProfile());
-
-    if (duplicateId) {
-      const existing = getCampaigns().find((c) => c.id === duplicateId);
-      if (existing) {
-        setTitle(`${existing.title} (Cópia)`);
-        setThemeId(existing.themeId);
-        setBadgeUrl(existing.badgeUrl || '');if(existing.artwork)setArtwork(existing.artwork);
-        setBackgroundId(existing.backgroundId || 'original');
-        setCampaignItems(existing.items);setPageBreaks(existing.pageBreaks||[]);
-        setDraftReady(true);
-        return;
-      }
-    }
-
-    try { const raw = localStorage.getItem(draftKey); if(raw) {const d=JSON.parse(raw);setTitle(d.title);setThemeId(d.themeId);setBadgeUrl(d.badgeUrl || '');if(d.artwork)setArtwork(d.artwork);setBackgroundId(d.backgroundId || 'original');setStartDate(d.startDate);setEndDate(d.endDate);setCampaignItems(d.items);setPageBreaks(d.pageBreaks||[]);setSelectedFormat(d.selectedFormat==='a5'?'a4':d.selectedFormat||'stories');setDraftReady(true);return;} } catch {}
-    const preset=searchParams.get('preset');
-    if(searchParams.get('theme')){setThemeId(initialTheme);const files:Record<string,string>={'promocao':'01-promocao.png','ofertas-da-semana':'02-ofertas-da-semana.png','ofertas-do-dia':'03-ofertas-do-dia.png','fim-de-semana':'04-fim-de-semana.png','acougue':'05-acougue.png','feirinha':'06-feirinha.png','limpeza':'07-limpeza.png','black-friday':'08-black-friday.png','natal':'09-natal.png','reveillon':'10-reveillon.png'};setBadgeUrl('https://sihrhmizpigscavtrtyl.supabase.co/storage/v1/object/public/selos/'+files[initialTheme]);setBackgroundId(preset||(({feirinha:'verde','black-friday':'premium','ofertas-da-semana':'azul'} as Partial<Record<VisualThemeId,string>>)[initialTheme]||'comercial'));setTitle(VISUAL_THEMES[initialTheme]?.name||'Nova campanha');}
-    setDraftReady(true);
-    // Carregar inicialmente os primeiros 6 produtos do catálogo se não houver duplicata
-    if (prods.length > 0 && campaignItems.length === 0) {
-      const initialItems: CampaignItem[] = prods.slice(0, 6).map((p) => ({
-        id: `ci-${Date.now()}-${p.id}`,
-        productId: p.id,
-        product: p,
-        promoPrice: p.currentPrice,
-        regularPrice: undefined,
-        highlightBadge: '',
-      }));
-      setCampaignItems(initialItems);
-    }
-  }, [duplicateId]);
-
-  useEffect(()=>{if(!draftReady)return;const d={artwork,backgroundId,badgeUrl,title,themeId,startDate,endDate,items:campaignItems,pageBreaks,selectedFormat};try{localStorage.setItem(draftKey,JSON.stringify(d));const index=JSON.parse(localStorage.getItem('smartclick_drafts_index')||'{}');index[sessionId]={title,updatedAt:new Date().toISOString()};localStorage.setItem('smartclick_drafts_index',JSON.stringify(index));setDraftWarning('');}catch{setDraftWarning('Armazenamento cheio: o rascunho não foi salvo. Exporte antes de fechar.');}},[draftReady,draftKey,sessionId,artwork,backgroundId,badgeUrl,title,themeId,startDate,endDate,campaignItems,pageBreaks,selectedFormat]);
-  const activeTheme = VISUAL_THEMES[themeId] || VISUAL_THEMES.promocao;
-  const starts=[0,...pageBreaks.filter(n=>n>0&&n<campaignItems.length)].sort((a,b)=>a-b);
-  const pages=starts.flatMap((start,i)=>chunkItemsByFormat(campaignItems.slice(start,starts[i+1]||campaignItems.length),selectedFormat));
-  function addPage(){const base=pages[0]||[];if(!base.length)return;setPageBreaks([...pageBreaks,campaignItems.length]);setCampaignItems([...campaignItems,...base.map((item,i)=>({...item,id:'ci-copy-'+Date.now()+'-'+i}))]);}
-
-  // Ações de itens
-  const handleAddItem = (product: Product) => {
-    if (campaignItems.some((ci) => ci.productId === product.id)) {
-      alert('Este produto já está incluído na campanha.');
-      return;
-    }
-    const newItem: CampaignItem = {
-      id: `ci-${Date.now()}-${product.id}`,
-      productId: product.id,
-      product,
-      promoPrice: product.currentPrice,
-      regularPrice: undefined,
-      highlightBadge: '',
-    };
-    setCampaignItems([...campaignItems, newItem]);
-  };
-
-  const handleRemoveItem = (id: string) => {
-    const pos=campaignItems.findIndex(i=>i.id===id);setPageBreaks(pageBreaks.map(n=>n>pos?n-1:n));setCampaignItems(campaignItems.filter(i=>i.id!==id));
-  };
-
-  const handleUpdateItem = (id: string, updates: Partial<CampaignItem>) => {
-    setCampaignItems(
-      campaignItems.map((item) => (item.id === id ? { ...item, ...updates } : item))
-    );
-  };
-
-  // Salvar Campanha
-  const handleSave = () => {
-    const newCampaign: Campaign = {
-      id: `camp-${sessionId}`,
-      storeId: store.id,
-      title,
-      themeId,
-      badgeUrl,
-      backgroundId,
-      artwork,
-      pageBreaks,
-      startDate,
-      endDate,
-      items: campaignItems,
-      formats: ['stories', 'feed', 'a4'],
-      hasStockLimit,
-      hasIllustrativeImagesNotice,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    saveCampaign(newCampaign);
-    alert('Campanha salva com sucesso!');
-  };
-
-  // Exportação PNG
-  const handleExportPngPage = async (pageIndex: number) => {
-    const el = document.getElementById(`flyer-page-${pageIndex}`);
-    if (!el) return;
-    setIsExporting(true);
-    setExportMessage(`Gerando imagem de alta resolução da página ${pageIndex + 1}...`);
-    try {
-      const cleanTitle = title.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-      await exportElementToPng(
-        el,
-        `smartclick_${cleanTitle}_${selectedFormat}_pag_${pageIndex + 1}`
-      );
-    } catch {
-      alert('Erro ao exportar imagem. Tente novamente.');
-    } finally {
-      setIsExporting(false);
-      setExportMessage('');
-    }
-  };
-
-  const handleExportAllPng = async () => {
-    setIsExporting(true);
-    setExportMessage('Gerando todas as páginas em alta resolução...');
-    try {
-      const cleanTitle = title.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-      for (let i = 0; i < pages.length; i++) {
-        const el = document.getElementById(`flyer-page-${i}`);
-        if (el) {
-          await exportElementToPng(
-            el,
-            `smartclick_${cleanTitle}_${selectedFormat}_pag_${i + 1}`
-          );
-        }
-      }
-    } catch {
-      alert('Erro ao exportar páginas.');
-    } finally {
-      setIsExporting(false);
-      setExportMessage('');
-    }
-  };
-
-  // Exportação PDF
-  const handleExportPdf = async () => {
-    setIsExporting(true);
-    setExportMessage('Gerando documento PDF com todas as páginas...');
-    try {
-      const elements: HTMLElement[] = [];
-      for (let i = 0; i < pages.length; i++) {
-        const el = document.getElementById(`flyer-page-${i}`);
-        if (el) elements.push(el);
-      }
-      const cleanTitle = title.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-      await exportElementsToPdf(
-        elements,
-        `smartclick_${cleanTitle}_${selectedFormat}_completo`,
-        selectedFormat
-      );
-    } catch {
-      alert('Erro ao exportar PDF.');
-    } finally {
-      setIsExporting(false);
-      setExportMessage('');
-    }
-  };
-
-  return (
-    <MainLayout>
-      <div className="max-w-[1500px] mx-auto px-4 py-6 space-y-6">
-        {/* Top Header */}
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => router.back()}
-              className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-            <div>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  className="font-black text-xl text-slate-900 border-b border-dashed border-slate-300 hover:border-purple-600 focus:border-purple-600 outline-none pb-0.5"
-                />
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {campaignItems.length} produtos selecionados • {pages.length} página(s) geradas no formato atual
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 w-full md:w-auto justify-end">
-            <button
-              onClick={handleSave}
-              className="px-4 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-700 transition-colors"
-            >
-              Salvar Campanha
-            </button>
-
-            <button
-              onClick={handleExportAllPng}
-              disabled={isExporting}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold shadow-md shadow-purple-200 transition-colors disabled:opacity-50"
-            >
-              <Download className="w-4 h-4" />
-              <span>Baixar Todas (PNG)</span>
-            </button>
-
-            <button
-              onClick={handleExportPdf}
-              disabled={isExporting}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-md transition-colors disabled:opacity-50"
-            >
-              <FileDown className="w-4 h-4 text-red-400" />
-              <span>Baixar PDF</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Notificação de Processamento de Exportação */}
-        {isExporting && (
-          <div className="bg-purple-100 border border-purple-300 text-purple-900 px-4 py-3 rounded-2xl flex items-center gap-3 animate-pulse">
-            <Sparkles className="w-5 h-5 text-purple-600" />
-            <span className="text-xs font-bold">{exportMessage}</span>
-          </div>
-        )}
-
-        {/* Main Grid: Lateral de Edição e Central de Prévia */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* PAINEL ESQUERDO: CONFIGURAÇÃO DOS PRODUTOS E PREÇOS */}
-          <div className="lg:col-span-5 space-y-5">
-            <section className="bg-white border rounded-2xl p-5 space-y-4">
-<h2 className="text-lg font-bold">QUAL FORMATO VOCÊ PRECISA?</h2><div className="grid grid-cols-2 gap-2">{([{id:'stories',name:'Stories',info:'1080 × 1920'},{id:'feed',name:'Feed',info:'1080 × 1350'},{id:'a4',name:'Panfleto · A4',info:'210 × 297 mm'}] as const).map(f=><button key={f.id} type="button" onClick={()=>setSelectedFormat(f.id)} aria-pressed={selectedFormat===f.id} className="border rounded-xl p-3 text-sm" style={{borderColor:selectedFormat===f.id?'#9565c9':'#e8e0ee',background:selectedFormat===f.id?'#f5effb':'white'}}>{f.name}<small className="block text-xs">{f.info}</small></button>)}</div>
-<div className="grid grid-cols-2 gap-3"><label className="text-xs">Início das ofertas<input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} className="block border rounded p-2 w-full"/></label><label className="text-xs">Fim das ofertas<input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} className="block border rounded p-2 w-full"/></label></div>
-{backgroundId==='none'&&<label className="block text-xs">Cor do texto no cabeçalho<input type="color" value={artwork.textColor||'#202020'} onChange={e=>setArtwork({...artwork,textColor:e.target.value})}/></label>}
-</section>
-            <OptionSection title="Fundo do encarte"><BackgroundPicker value={backgroundId} onChange={setBackgroundId} /></OptionSection>
-            <OptionSection title="LOGOTIPO / NOME">
- <div className="p-4 space-y-4 text-xs">
- <p>Clique no selo ou logotipo na prévia e arraste. Os ajustes ficam na área superior para preservar produtos e rodapé.</p>
- <label className="block">Identificação da loja<select className="border rounded p-2 ml-2" value={artwork.identity} onChange={e=>setArtwork({...artwork,identity:e.target.value})}><option value="name">Nome em texto</option><option value="logo">Logotipo</option></select></label>
- <label className="block"><input type="checkbox" checked={artwork.italic} onChange={e=>setArtwork({...artwork,italic:e.target.checked})}/> Nome em negrito e itálico</label>
- <PhotoUpload label="ENVIAR LOGO" onChange={url=>setArtwork({...artwork,logoUrl:url,identity:'logo'})}/>
- <button type="button" className="border rounded p-2" onClick={async()=>{const src=artwork.logoUrl||store.logoUrl;if(!src){alert('Envie um logotipo primeiro.');return}try{const im=new Image();im.crossOrigin='anonymous';await new Promise<void>((ok,no)=>{im.onload=()=>ok();im.onerror=no;im.src=src});const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const ctx=c.getContext('2d')!;ctx.drawImage(im,0,0);const pixels=ctx.getImageData(0,0,c.width,c.height);const seen=new Uint8Array(c.width*c.height),queue:number[]=[];const add=(i:number)=>{if(seen[i])return;seen[i]=1;const k=i*4;if(pixels.data[k]>235&&pixels.data[k+1]>235&&pixels.data[k+2]>235)queue.push(i)};for(let x=0;x<c.width;x++){add(x);add((c.height-1)*c.width+x)}for(let y=0;y<c.height;y++){add(y*c.width);add(y*c.width+c.width-1)}for(let n=0;n<queue.length;n++){const i=queue[n];pixels.data[i*4+3]=0;if(i%c.width)add(i-1);if(i%c.width<c.width-1)add(i+1);if(i>=c.width)add(i-c.width);if(i<c.width*(c.height-1))add(i+c.width)}ctx.putImageData(pixels,0,0);setArtwork({...artwork,logoUrl:c.toDataURL('image/png'),identity:'logo'});}catch{alert('Envie o arquivo do logo para remover o fundo branco.')}}}>Remover fundo branco do logo</button><p className="text-xs">Remove branco conectado às bordas. Confira o resultado; você pode reenviar o original.</p>
- {(['badge','logo'] as const).map(key=><label key={key} className="block">Tamanho do {key==='badge'?'selo':'logotipo'}<input aria-label={'Tamanho '+key} type="range" min={key==='badge'?100:40} max={key==='badge'?500:200} value={artwork[key].width} className="block w-full" onChange={e=>{const width=Number(e.target.value);setArtwork({...artwork,[key]:{...artwork[key],width,x:Math.min(artwork[key].x,540-width),y:Math.min(artwork[key].y,Math.max(0,165-Math.min(width*.48,165)))}})}}/></label>)}
- <button type="button" className="border rounded p-2" onClick={()=>setArtwork({...artwork,badge:{x:90,y:27,width:360},logo:{x:12,y:8,width:90}})}>Restaurar posições</button>
- </div></OptionSection>
-            <OptionSection title="Selo promocional"><BadgePicker value={badgeUrl} onChange={setBadgeUrl} /></OptionSection>
-            <OptionSection title={`Produtos e preços (${campaignItems.length})`} open>
-            {/* 2. Gerenciador de Produtos da Campanha */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider">
-                  2. Itens e Preços Confirmados ({campaignItems.length})
-                </h3>
-              </div>
-
-              <div className="space-y-3 max-h-[480px] overflow-y-auto pr-1">
-                {campaignItems.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2 text-xs"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-purple-100 text-purple-700 font-bold flex items-center justify-center text-[10px]">
-                          {index + 1}
-                        </span>
-                        <div>
-                          <div className="font-bold text-slate-900 leading-tight">
-                            {item.product.name}
-                          </div>
-                          <div className="text-[10px] text-slate-500">
-                            {item.product.packageContent} • Por {item.product.saleUnit}
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleRemoveItem(item.id)}
-                        className="text-slate-400 hover:text-red-600 p-1 rounded"
-                        title="Remover da campanha"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-
-                    <PhotoUpload onChange={url=>{const product={...item.product,imageUrl:url,notes:undefined};handleUpdateItem(item.id,{product});const updated=allProducts.map(p=>p.id===product.id?product:p);saveProducts(updated);setAllProducts(updated);}} />
-                    {/* Preços: De / Por */}
-                    <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-200/60">
-                      <div>
-                        <label className="block text-[10px] font-medium text-slate-500">
-                          Preço Anterior (De)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={item.regularPrice || ''}
-                          onChange={(e) =>
-                            handleUpdateItem(item.id, {
-                              regularPrice: parseFloat(e.target.value) || 0,
-                            })
-                          }
-                          className="w-full px-2 py-1 bg-white border border-slate-200 rounded text-xs outline-none focus:border-purple-600"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[10px] font-bold text-purple-700">
-                          Preço Oferta (Por) *
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={item.promoPrice}
-                          onChange={(e) =>
-                            handleUpdateItem(item.id, {
-                              promoPrice: parseFloat(e.target.value) || 0,
-                            })
-                          }
-                          className="w-full px-2 py-1 bg-white border border-purple-300 font-black text-purple-900 rounded text-xs outline-none focus:border-purple-600"
-                        />
-                      </div>
-                    </div>
-
-
-                  </div>
-                ))}
-              </div>
-
-              {/* Adicionar Mais Produtos do Catálogo */}
-              <div className="pt-2 border-t border-slate-100">
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Adicionar do catálogo:
-                </label>
-                <div className="flex gap-2">
-                  <select
-                    id="product-picker"
-                    className="flex-1 px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-700 outline-none"
-                  >
-                    {allProducts
-                      .filter((p) => !campaignItems.some((ci) => ci.productId === p.id))
-                      .map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name} ({formatCurrencyBRL(p.currentPrice)})
-                        </option>
-                      ))}
-                  </select>
-                  <button
-                    onClick={() => {
-                      const sel = document.getElementById(
-                        'product-picker'
-                      ) as HTMLSelectElement;
-                      if (!sel?.value) return;
-                      const prod = allProducts.find((p) => p.id === sel.value);
-                      if (prod) handleAddItem(prod);
-                    }}
-                    className="px-3.5 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-700 flex items-center gap-1 shrink-0"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Incluir</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            </OptionSection>
-
-          </div>
-
-          {/* PAINEL DIREITO: PRÉVIA REAL EM ALTA DEFINIÇÃO E DOWNLOAD */}
-          <div className="sc-editor-preview lg:col-span-7 space-y-6">
-            <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Eye className="w-4 h-4 text-purple-600" />
-                <span className="text-xs font-bold text-slate-900">
-                  PRÉVIA
-                </span>
-              </div>
-              <span className="text-[11px] font-semibold text-slate-500">
-                
-              </span>
-            </div>
-
-            <button type="button" className="sc-upload-button" onClick={addPage}>+ Criar página baseada na primeira</button>
-            {draftWarning&&<p role="alert" className="text-red-600 text-xs">{draftWarning}</p>}
-            {/* Container das Páginas Renderizadas */}
-            <div
-              ref={pagesContainerRef}
-              className="flex flex-col items-center gap-8 bg-slate-200/50 p-6 rounded-3xl border border-slate-300/60 overflow-x-auto"
-            >
-              {pages.map((pageItems, pIndex) => (
-                <div key={pIndex} className="flex flex-col items-center gap-3">
-                  <div className="flex items-center justify-between w-full max-w-[540px] px-2">
-                    <span className="text-xs font-extrabold text-slate-700">
-                      Página {pIndex + 1} de {pages.length}
-                    </span>
-                    <button
-                      onClick={() => handleExportPngPage(pIndex)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-slate-300 rounded-lg text-[11px] font-bold text-slate-700 hover:bg-slate-50 shadow-sm"
-                    >
-                      <Download className="w-3.5 h-3.5 text-purple-600" />
-                      <span>Baixar esta página (PNG)</span>
-                    </button>
-                  </div>
-
-                  {/* Canvas do Encarte */}
-                  <FlyerCanvas
-                    id={`flyer-page-${pIndex}`}
-                    artwork={artwork}
-                    onArtworkChange={setArtwork}
-                    backgroundId={backgroundId}
-                    badgeUrl={badgeUrl}
-                    theme={activeTheme}
-                    store={store}
-                    campaignTitle={title}
-                    startDate={startDate}
-                    endDate={endDate}
-                    format={selectedFormat}
-                    items={pageItems}
-                    pageIndex={pIndex}
-                    totalPages={pages.length}
-                    hasStockLimit={hasStockLimit}
-                    hasIllustrativeImagesNotice={hasIllustrativeImagesNotice}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </MainLayout>
-  );
+import {Suspense,useEffect,useRef,useState} from 'react';
+import {useSearchParams} from 'next/navigation';
+import {MainLayout} from '@/components/MainLayout';
+import {OptionSection} from '@/components/OptionSection';
+import {PhotoUpload} from '@/components/PhotoUpload';
+import {BadgePicker} from '@/components/BadgePicker';
+import {BackgroundPicker} from '@/components/BackgroundPicker';
+import {FlyerCanvas} from '@/components/FlyerCanvas';
+import {ImportModal} from '@/components/ImportModal';
+import {Campaign,CampaignItem,FlyerFormat,Product,VisualThemeId} from '@/types';
+import {VISUAL_THEMES} from '@/constants/themes';
+import {BADGES} from '@/constants/badges';
+import {getProducts,getStoreProfile,getCampaigns,saveCampaign,saveProducts,addProducts} from '@/utils/storage';
+import {EditorDocument,EditorPage,copyPage,makePages,MODES,newId} from '@/utils/editorDocument';
+import {exportElementToPng,exportElementsToPdf} from '@/utils/exportHelper';
+const input='border rounded-lg p-2 w-full text-xs';
+const baseBadge='https://sihrhmizpigscavtrtyl.supabase.co/storage/v1/object/public/selos/';
+function Editor(){
+ const params=useSearchParams();const [doc,setDoc]=useState<EditorDocument|null>(null);const [products,setProducts]=useState<Product[]>([]);const [activeId,setActiveId]=useState('');const [message,setMessage]=useState('');const [busy,setBusy]=useState(false);const [importing,setImporting]=useState(false);const [picker,setPicker]=useState('');const [modes,setModes]=useState(false);const [imported,setImported]=useState<Product[]|null>(null);const snapshot=useRef<EditorDocument|null>(null);const key=useRef('');
+ useEffect(()=>{
+ const id=params.get('draft')||params.get('new')||params.get('duplicate')||'current';key.current='smartclick_editor_v4_'+id;setProducts(getProducts());try{const rows=JSON.parse(sessionStorage.getItem('smartclick_last_import')||'null');if(rows)setImported(rows)}catch{}
+ let loaded:EditorDocument|null=null;try{loaded=JSON.parse(localStorage.getItem(key.current)||'null')}catch{}
+ if(!loaded){const existing=getCampaigns().find(c=>c.id===params.get('duplicate'));if(existing?.editorDocument){loaded=structuredClone(existing.editorDocument);loaded.id=id;loaded.pages=loaded.pages.map(copyPage);loaded.activeId=loaded.pages[0].id}}
+ if(!loaded){const theme=(params.get('theme')||'promocao') as VisualThemeId;const map:Record<string,number>={'promocao':0,'ofertas-da-semana':1,'ofertas-do-dia':2,'fim-de-semana':3,acougue:4,feirinha:5,limpeza:6,'black-friday':7,natal:8,reveillon:9};const first:EditorPage={id:newId(),title:VISUAL_THEMES[theme]?.name||'Nova campanha',themeId:VISUAL_THEMES[theme]?theme:'promocao',backgroundId:params.get('preset')||(theme==='black-friday'?'premium':'comercial'),badgeUrl:BADGES[map[theme]||0].url,startDate:new Date().toISOString().slice(0,10),endDate:new Date(Date.now()+7*86400000).toISOString().slice(0,10),format:'stories',items:[],store:getStoreProfile(),artwork:{badge:{x:90,y:27,width:360},logo:{x:12,y:8,width:90},identity:'name',italic:false,texts:[]}};
+ // Preserve previous local draft when migrating to independent pages.
+ if(!params.get('new')&&!params.get('theme')){try{const old=JSON.parse(localStorage.getItem('smartclick_campaign_draft_v3_'+id)||localStorage.getItem('smartclick_campaign_draft_v2')||'null');if(old){Object.assign(first,{title:old.title||first.title,themeId:old.themeId||first.themeId,backgroundId:old.backgroundId||first.backgroundId,badgeUrl:old.badgeUrl||'',startDate:old.startDate||first.startDate,endDate:old.endDate||first.endDate,format:old.selectedFormat==='a5'?'a4':old.selectedFormat||'stories',artwork:old.artwork||first.artwork});loaded={id,pages:makePages(old.items||[],first),activeId:''};loaded.activeId=loaded.pages[0].id}}catch{}}
+ if(!loaded){first.items=getProducts().slice(0,6).map(p=>({id:newId(),productId:p.id,product:p,promoPrice:p.currentPrice}));loaded={id,pages:[first],activeId:first.id}}}
+ snapshot.current=loaded;setDoc(loaded);setActiveId(loaded.activeId);persist(loaded);if(params.get('auto'))setModes(true);
+ },[]);
+ function persist(d:EditorDocument){try{localStorage.setItem(key.current,JSON.stringify(d));const index=JSON.parse(localStorage.getItem('smartclick_drafts_index')||'{}');index[d.id]={title:d.pages[0]?.title||'Campanha',updatedAt:new Date().toISOString(),version:4};localStorage.setItem('smartclick_drafts_index',JSON.stringify(index));}catch{setMessage('Não foi possível salvar: armazenamento cheio. Baixe sua campanha antes de fechar.')}}
+ function change(d:EditorDocument){snapshot.current=d;setDoc(d);persist(d)}
+ useEffect(()=>{const flush=()=>{if(snapshot.current)persist(snapshot.current)};window.addEventListener('pagehide',flush);return()=>window.removeEventListener('pagehide',flush)},[]);
+ if(!doc)return <MainLayout><p className="p-6">Abrindo campanha…</p></MainLayout>;
+ const page=doc.pages.find(p=>p.id===activeId)||doc.pages[0];
+ function update(patch:Partial<EditorPage>){change({...doc!,pages:doc!.pages.map(p=>p.id===page.id?{...p,...patch}:p),activeId:page.id})}
+ function select(id:string){setActiveId(id);change({...doc!,activeId:id})}
+ function create(){const p=copyPage(page);change({...doc!,pages:[...doc!.pages,p],activeId:p.id});setActiveId(p.id)}
+ function remove(){if(doc!.pages.length===1){setMessage('Mantenha pelo menos uma página.');return}if(!confirm('Excluir esta página? As outras serão mantidas.'))return;const pages=doc!.pages.filter(p=>p.id!==page.id);const id=pages[Math.max(0,Math.min(doc!.pages.indexOf(page)-1,pages.length-1))].id;change({...doc!,pages,activeId:id});setActiveId(id)}
+ function item(id:string,patch:Partial<CampaignItem>){update({items:page.items.map(i=>i.id===id?{...i,...patch}:i)})}
+ function addProduct(){const p=products.find(p=>p.id===picker);if(!p)return;if(page.items.length===22){setMessage('Esta página já tem 22 produtos. Crie outra página.');return}update({items:[...page.items,{id:newId(),productId:p.id,product:p,promoPrice:p.currentPrice}]})}
+ function save(){const c:Campaign={id:'camp-'+doc!.id,title:doc!.pages[0].title,storeId:page.store.id,themeId:page.themeId,startDate:page.startDate,endDate:page.endDate,items:doc!.pages.flatMap(p=>p.items),formats:[...new Set(doc!.pages.map(p=>p.format))],createdAt:new Date().toISOString(),updatedAt:new Date().toISOString(),editorDocument:doc!,backgroundId:page.backgroundId,badgeUrl:page.badgeUrl,artwork:page.artwork};try{saveCampaign(c);setMessage('Campanha salva.')}catch{setMessage('Não foi possível salvar. Exporte sua campanha.')}}
+ async function exportFile(pdf:boolean){if(!doc)return;if(doc.pages.some(p=>!p.startDate||!p.endDate||p.startDate>p.endDate||p.items.some(i=>!i.product.name||!Number.isFinite(i.promoPrice)||i.promoPrice<=0))){setMessage('Confira datas, nomes e preços antes de baixar.');return}setBusy(true);setMessage('Preparando arquivo…');try{if(pdf){if(new Set(doc.pages.map(p=>p.format)).size>1){setMessage('Para um PDF único, use o mesmo formato em todas as páginas. O PNG permite formatos diferentes.');return}await exportElementsToPdf(doc.pages.map(p=>document.getElementById('export-'+p.id)!), 'smartclick-campanha',page.format)}else await exportElementToPng(document.getElementById('preview-page')!,'smartclick-pagina');setMessage('Arquivo gerado.')}catch{setMessage('Falha ao exportar. Confira o carregamento das imagens.')}finally{setBusy(false)}}
+ function automatic(mode:typeof MODES[number]){const source=imported||products;const sorted=mode.id==='setor'?[...source].sort((a,b)=>a.category.localeCompare(b.category)):source;const base={...page,title:mode.name,themeId:mode.theme,backgroundId:mode.background,badgeUrl:baseBadge+mode.badge} as EditorPage;const pages=makePages(sorted.map(p=>({id:newId(),productId:p.id,product:p,promoPrice:p.currentPrice})),base);const id=newId();const d={id,pages,activeId:pages[0].id};key.current='smartclick_editor_v4_'+id;change(d);setActiveId(d.activeId);window.history.replaceState(null,'','/campanhas/nova?draft='+id);setModes(false);setMessage('Nova campanha criada com seus preços. O rascunho anterior foi preservado.')}
+ return <MainLayout><div className="max-w-[1500px] mx-auto w-full px-4 py-6 space-y-5">
+ <div className="flex flex-wrap gap-3 items-center justify-between"><input aria-label="Nome da campanha" className="text-xl font-bold bg-transparent" value={page.title} onChange={e=>update({title:e.target.value})}/><div className="flex gap-2"><button className="sc-upload-button" onClick={()=>setImporting(true)}>IMPORTAR LISTA</button><button className="sc-upload-button" onClick={save}>Salvar campanha</button><button disabled={busy} className="sc-upload-button" onClick={()=>exportFile(true)}>Baixar PDF</button></div></div>
+ <div className="sc-page-tabs" role="tablist" aria-label="Páginas">{doc.pages.map((p,i)=><button key={p.id} role="tab" aria-selected={page.id===p.id} onClick={()=>select(p.id)}>Página {i+1}</button>)}<button onClick={create} aria-label="Criar página">＋</button><button onClick={create}>CRIAR PÁGINA</button><button onClick={remove}>Excluir página</button></div>
+ {message&&<p role="status" className="text-sm">{message}</p>}
+ {modes&&<section className="bg-white rounded-2xl border p-5"><h2 className="font-bold mb-3">Sua lista já pode virar uma campanha</h2><p className="text-xs mb-3">As três opções preservam os preços recebidos. Escolha a estratégia visual.</p><div className="grid md:grid-cols-3 gap-3">{MODES.map(m=><button key={m.id} className="border rounded-xl p-4 text-left" onClick={()=>automatic(m)}><img src={baseBadge+m.badge} alt="" style={{height:85,width:'100%',objectFit:'contain'}}/><strong>{m.name}</strong><p className="text-xs">{m.description}</p></button>)}</div></section>}
+ <div className="grid lg:grid-cols-12 gap-6"><div className="lg:col-span-5 space-y-4">
+ <section className="bg-white border rounded-2xl p-5 space-y-3"><h2 className="font-bold">QUAL FORMATO VOCÊ PRECISA?</h2><div className="grid grid-cols-3 gap-2">{(['stories','feed','a4'] as const).map(f=><button className="border rounded-xl p-3 text-sm" aria-pressed={page.format===f} style={{background:page.format===f?'#eee4f8':'white'}} key={f} onClick={()=>update({format:f})}>{f==='a4'?'A4':f==='feed'?'Feed':'Stories'}</button>)}</div><div className="grid grid-cols-2 gap-2"><label className="text-xs">Início<input type="date" className={input} value={page.startDate} onChange={e=>update({startDate:e.target.value})}/></label><label className="text-xs">Fim<input type="date" className={input} value={page.endDate} onChange={e=>update({endDate:e.target.value})}/></label></div></section>
+ <OptionSection title="Selo promocional"><BadgePicker value={page.badgeUrl} onChange={badgeUrl=>update({badgeUrl})}/></OptionSection>
+ <OptionSection title="Fundo do encarte"><BackgroundPicker value={page.backgroundId} onChange={backgroundId=>update({backgroundId})}/></OptionSection>
+ <OptionSection title="LOGOTIPO / TEXTO"><div className="p-4 space-y-3 text-xs"><select className={input} value={page.artwork.identity} onChange={e=>update({artwork:{...page.artwork,identity:e.target.value}})}><option value="name">Nome da loja</option><option value="logo">Logotipo</option><option value="none">Sem identificação no cabeçalho</option></select><input className={input} aria-label="Nome da loja" value={page.store.name} onChange={e=>update({store:{...page.store,name:e.target.value}})}/><label><input type="checkbox" checked={page.artwork.italic} onChange={e=>update({artwork:{...page.artwork,italic:e.target.checked}})}/> Nome em itálico</label><label className="block">Cor do texto<input type="color" value={page.artwork.textColor||'#202020'} onChange={e=>update({artwork:{...page.artwork,textColor:e.target.value}})}/></label><PhotoUpload label="ENVIAR LOGO" onChange={logoUrl=>update({artwork:{...page.artwork,logoUrl,identity:'logo'}})}/><button className="sc-upload-button" onClick={async()=>{try{const {removeWhite}=await import('@/utils/removeWhite');const logoUrl=await removeWhite(page.artwork.logoUrl||page.store.logoUrl||'');update({artwork:{...page.artwork,logoUrl}})}catch{setMessage('Envie um logo válido antes de remover o fundo.')}}}>REMOVER FUNDO DO LOGO</button><p>Remoção de branco conectado às bordas. Confira o resultado.</p><button className="sc-upload-button" onClick={()=>update({artwork:{...page.artwork,texts:[...(page.artwork.texts||[]),{id:newId(),text:'Seu texto',x:30,y:220,size:20,color:'#202020'}]}})}>+ Caixa de texto</button>{page.artwork.texts?.map(t=><div key={t.id} className="border rounded p-2 space-y-2"><textarea className={input} value={t.text} onChange={e=>update({artwork:{...page.artwork,texts:page.artwork.texts!.map(x=>x.id===t.id?{...x,text:e.target.value}:x)}})}/><div className="flex gap-2"><input aria-label="Tamanho do texto" type="number" min={8} max={80} value={t.size} onChange={e=>update({artwork:{...page.artwork,texts:page.artwork.texts!.map(x=>x.id===t.id?{...x,size:Math.max(8,Math.min(80,+e.target.value))}:x)}})}/><input type="color" value={t.color} onChange={e=>update({artwork:{...page.artwork,texts:page.artwork.texts!.map(x=>x.id===t.id?{...x,color:e.target.value}:x)}})}/><button onClick={()=>update({artwork:{...page.artwork,texts:page.artwork.texts!.filter(x=>x.id!==t.id)}})}>Excluir texto</button></div></div>)}<button className="sc-upload-button" onClick={()=>update({badgeUrl:''})}>Remover selo</button></div></OptionSection>
+ <OptionSection title={`Produtos (${page.items.length}/22)`} open><div className="p-4 space-y-3"><div className="flex gap-2"><select className={input} value={picker} onChange={e=>setPicker(e.target.value)}><option value="">Escolha um produto</option>{products.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select><button onClick={addProduct} className="sc-upload-button">Incluir</button></div>{page.items.map(i=><div className="border rounded-xl p-3 text-xs space-y-2" key={i.id}><input className={input} aria-label="Nome do produto" value={i.product.name} onChange={e=>item(i.id,{product:{...i.product,name:e.target.value}})}/><div className="flex gap-2"><label>Preço<input className={input} type="number" min="0.01" step="0.01" value={i.promoPrice} onChange={e=>item(i.id,{promoPrice:+e.target.value})}/></label><label className="self-center"><input type="checkbox" checked={i.highlightBadge==='EM OFERTA'} onChange={e=>item(i.id,{highlightBadge:e.target.checked?'EM OFERTA':''})}/> EM OFERTA</label><button onClick={()=>update({items:page.items.filter(x=>x.id!==i.id)})}>Excluir</button></div><PhotoUpload onChange={imageUrl=>{const product={...i.product,imageUrl,notes:undefined};item(i.id,{product});const all=products.map(p=>p.id===product.id?product:p);setProducts(all);try{saveProducts(all)}catch{setMessage('Foto aplicada na página; catálogo sem espaço para salvar.')}}}/></div>)}</div></OptionSection>
+ </div><div className="sc-editor-preview lg:col-span-7 space-y-3"><div className="flex justify-between items-center"><h2 className="font-bold">PRÉVIA</h2><button disabled={busy} className="sc-upload-button" onClick={()=>exportFile(false)}>Baixar PNG</button></div><div className="overflow-x-auto bg-slate-100 rounded-2xl p-4"><FlyerCanvas id="preview-page" theme={VISUAL_THEMES[page.themeId]} store={page.store} campaignTitle={page.title} startDate={page.startDate} endDate={page.endDate} format={page.format} items={page.items} pageIndex={0} totalPages={doc.pages.length} backgroundId={page.backgroundId} badgeUrl={page.badgeUrl} artwork={page.artwork} onArtworkChange={artwork=>update({artwork})}/></div></div></div>
+ <div aria-hidden style={{position:'fixed',left:-20000,top:0,pointerEvents:'none'}}>{doc.pages.map(p=><FlyerCanvas key={p.id} id={'export-'+p.id} theme={VISUAL_THEMES[p.themeId]} store={p.store} campaignTitle={p.title} startDate={p.startDate} endDate={p.endDate} format={p.format} items={p.items} pageIndex={0} totalPages={doc.pages.length} backgroundId={p.backgroundId} badgeUrl={p.badgeUrl} artwork={p.artwork}/>)}</div>
+ <ImportModal isOpen={importing} onClose={()=>setImporting(false)} existingProducts={products} onImportConfirmed={rows=>{const all=addProducts(rows);setProducts(all);setImported(rows);setModes(true)}}/>
+ </div></MainLayout>
 }
-
-function CampaignSession(){const params=useSearchParams();return <CampaignEditorContent key={params.get('new')||params.get('draft')||params.get('duplicate')||'current'}/>;}
-export default function CampaignEditorPage() {
-  return (
-    <Suspense fallback={<div className="p-8 text-center text-slate-500">Carregando editor...</div>}>
-      <CampaignSession />
-    </Suspense>
-  );
-}
-
+function Session(){const p=useSearchParams();return <Editor key={p.get('new')||p.get('draft')||p.get('duplicate')||'current'}/>}
+export default function Page(){return <Suspense fallback={<p>Abrindo editor…</p>}><Session/></Suspense>}

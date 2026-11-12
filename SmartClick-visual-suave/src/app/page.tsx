@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { HomeCarousel } from '@/components/HomeCarousel';
 import { MainLayout } from '@/components/MainLayout';
 import { ImportModal } from '@/components/ImportModal';
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 
 export default function HomePage() {
+  const router=useRouter();
   const [products, setProducts] = useState<Product[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -35,6 +37,8 @@ export default function HomePage() {
   const handleImportConfirmed = (newProds: Product[]) => {
     const updated = addProducts(newProds);
     setProducts(updated);
+    sessionStorage.setItem('smartclick_last_import',JSON.stringify(newProds));
+    router.push(`/campanhas/nova?auto=1&new=${Date.now()}`);
   };
 
   return (
